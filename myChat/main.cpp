@@ -15,10 +15,70 @@ struct Client {
     bool read_closed = false;
 };
 
+// 返回 false 表示发生错误，需要关闭连接。
+bool receiveData(int fd, Client& client)
+{
+    const size_t max_pending = 1024 * 1024;
+    char buffer[4096];
+    for (;;) {
+        ssize_t n = recv(fd, buffer, sizeof(buffer), 0);
+        if (n > 0) {
+            if (client.pending.size() + static_cast<size_t>(n) > max_pending) {
+                std::cerr << "Client send buffer limit exceeded: " << fd << std::endl;
+                return false;
+            }
+            client.pending.append(buffer, static_cast<size_t>(n));
+        } else if (n == 0) {
+            client.read_closed = true; // 对方不再发送，但可能还在等回显。
+            return true;
+        } else {
+            if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) return true;
+            std::perror("recv");
+            return false;
+        }
+    }
+}
+
+bool sendData(int fd, Client& client)
+{
+    while (!client.pending.empty()) {
+        // MSG_NOSIGNAL 避免向已断开的客户端发送时触发 SIGPIPE。
+        ssize_t n = send(fd, client.pending.data(), client.pending.size(), MSG_NOSIGNAL);
+        if (n > 0) {
+            client.pending.erase(0, static_cast<size_t>(n));
+        } else {
+            if (n < 0 && errno == EINTR) continue;
+            if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return true;
+            if (n < 0) std::perror("send");
+            return false;
+        }
+    }
+    return true;
+}
+
+bool updateEvents(int epoll_fd, int fd, const Client& client)
+{
+    epoll_event event{};
+    event.data.fd = fd;
+    if (!client.read_closed) event.events |= EPOLLIN | EPOLLRDHUP;
+    if (!client.pending.empty()) event.events |= EPOLLOUT;
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &event) == 0) return true;
+    std::perror("epoll_ctl MOD client");
+    return false;
+}
+
+void closeClient(int epoll_fd, int fd, std::unordered_map<int, Client>& clients)
+{
+    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
+    close(fd);
+    clients.erase(fd);
+    std::cout << "Client disconnected: " << fd << std::endl;
+}
+
 int main()
 {
     const int port = 8888;
-    const size_t max_pending = 1024 * 1024;
     int listen_fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
     if (listen_fd < 0) {
         std::perror("socket");
@@ -94,61 +154,21 @@ int main()
             auto it = clients.find(fd);
             if (it == clients.end()) continue;
             Client& client = it->second;
-            bool failed = (flags & EPOLLERR) != 0;
-            if (!failed && (flags & (EPOLLIN | EPOLLRDHUP | EPOLLHUP))) {
-                char buffer[4096];
-                for (;;) {
-                    ssize_t n = recv(fd, buffer, sizeof(buffer), 0);
-                    if (n > 0) {
-                        if (client.pending.size() + static_cast<size_t>(n) > max_pending) {
-                            std::cerr << "Client send buffer limit exceeded: " << fd << std::endl;
-                            failed = true;
-                            break;
-                        }
-                        client.pending.append(buffer, static_cast<size_t>(n));
-                    } else if (n == 0) {
-                        client.read_closed = true;
-                        break;
-                    } else {
-                        if (errno == EINTR) continue;
-                        if (errno != EAGAIN && errno != EWOULDBLOCK) {
-                            std::perror("recv");
-                            failed = true;
-                        }
-                        break;
-                    }
-                }
+
+            // 按顺序处理：检查错误、接收、发送、更新事件或关闭连接。
+            bool ok = !(flags & EPOLLERR);
+            if (ok && (flags & (EPOLLIN | EPOLLRDHUP | EPOLLHUP))) {
+                ok = receiveData(fd, client);
             }
-            if (!failed && !client.pending.empty()) {
-                while (!client.pending.empty()) {
-                    // MSG_NOSIGNAL 避免向已断开的客户端发送时触发 SIGPIPE。
-                    ssize_t n = send(fd, client.pending.data(), client.pending.size(), MSG_NOSIGNAL);
-                    if (n > 0) client.pending.erase(0, static_cast<size_t>(n));
-                    else if (n < 0 && errno == EINTR) continue;
-                    else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) break;
-                    else {
-                        if (n < 0) std::perror("send");
-                        failed = true;
-                        break;
-                    }
-                }
+            if (ok && !client.pending.empty()) {
+                ok = sendData(fd, client);
             }
-            if (failed || (client.read_closed && client.pending.empty())) {
-                epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
-                close(fd);
-                clients.erase(it);
-                std::cout << "Client disconnected: " << fd << std::endl;
-                continue;
+            if (ok && !(client.read_closed && client.pending.empty())) {
+                ok = updateEvents(epoll_fd, fd, client);
+            } else {
+                ok = false;
             }
-            epoll_event client_event{};
-            client_event.events = (client.read_closed ? 0u : static_cast<uint32_t>(EPOLLIN | EPOLLRDHUP)) |
-                                  (client.pending.empty() ? 0u : static_cast<uint32_t>(EPOLLOUT));
-            client_event.data.fd = fd;
-            if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &client_event) < 0) {
-                std::perror("epoll_ctl MOD client");
-                close(fd);
-                clients.erase(it);
-            }
+            if (!ok) closeClient(epoll_fd, fd, clients);
         }
     }
     for (const auto& entry : clients) close(entry.first);
