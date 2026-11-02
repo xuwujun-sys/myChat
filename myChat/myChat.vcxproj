@@ -81,6 +81,7 @@
     <ClCompile Include="TcpChannel.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="config.h" />
     <ClInclude Include="Kernel.h" />
     <ClInclude Include="ListenChannel.h" />
     <ClInclude Include="TcpChannel.h" />
