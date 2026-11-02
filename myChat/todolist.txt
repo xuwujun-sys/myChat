@@ -2,7 +2,7 @@ Zinx 复刻项目待办清单
 
 [x] 1. 实现单客户端 TCP 回显服务器（socket、bind、listen、accept、recv、send）
 [x] 2. 使用 epoll 管理多个客户端连接，处理连接、收发和断开
-[ ] 3. 封装 Kernel 事件循环和 Channel 通道（监听通道、数据通道）
+[x] 3. 封装 Kernel 事件循环和 Channel 通道（监听通道、数据通道）
 [ ] 4. 实现消息和 Handler，把数据收发与处理逻辑分开
 [ ] 5. 实现发送缓冲，处理短写和 EPOLLOUT 事件
 [ ] 6. 实现 Protocol 协议层，处理消息边界、粘包和半包

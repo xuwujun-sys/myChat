@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|ARM">
@@ -76,6 +76,14 @@
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Kernel.cpp" />
+    <ClCompile Include="ListenChannel.cpp" />
+    <ClCompile Include="TcpChannel.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Kernel.h" />
+    <ClInclude Include="ListenChannel.h" />
+    <ClInclude Include="TcpChannel.h" />
   </ItemGroup>
   <ItemDefinitionGroup />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
