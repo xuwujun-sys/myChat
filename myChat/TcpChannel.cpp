@@ -5,8 +5,10 @@
 #include <cerrno>
 #include <cstdio>
 #include <iostream>
+#include <utility>
 
-TcpChannel::TcpChannel(int fd) : Channel(fd) {}
+TcpChannel::TcpChannel(int fd, std::function<bool(const TcpChannel&)> notifySend)
+    : Channel(fd), notify_send_(std::move(notifySend)) {}
 
 // 返回 false 表示发生错误，需要关闭连接。
 bool TcpChannel::receiveData(Handler& handler)
@@ -35,7 +37,12 @@ bool TcpChannel::queueSend(const char* data, std::size_t size)
         std::cerr << "Client send buffer limit exceeded: " << fd_ << std::endl;
         return false;
     }
+    bool needsNotification = pending_.empty() && size > 0;
     pending_.append(data, size);
+    if (needsNotification && notify_send_ && !notify_send_(*this)) {
+        pending_.consume(size);
+        return false;
+    }
     return true;
 }
 /*

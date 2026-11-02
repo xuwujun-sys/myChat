@@ -54,7 +54,10 @@ void Kernel::acceptConnections()
             close(client_fd);
             continue;
         }
-        auto client = clients_.emplace(client_fd, std::unique_ptr<TcpChannel>(new TcpChannel(client_fd)));
+        auto notifySend = [this](const TcpChannel& channel) {
+            return updateEvents(channel.getFd(), channel);
+        };
+        auto client = clients_.emplace(client_fd, std::unique_ptr<TcpChannel>(new TcpChannel(client_fd, notifySend)));
         handler_.onConnected(*client.first->second);
         std::cout << "Client connected: " << client_fd << std::endl;
     }
