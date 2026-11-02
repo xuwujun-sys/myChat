@@ -1,5 +1,4 @@
 #include "Kernel.h"
-#include "ListenChannel.h"
 #include "config.h"
 #include <sys/epoll.h>
 #include <unistd.h>
@@ -25,18 +24,18 @@ bool Kernel::updateEvents(int fd, const TcpChannel& channel)
     return false;
 }
 
-void Kernel::closeClient(int fd, std::unordered_map<int, std::unique_ptr<TcpChannel>>& clients)
+void Kernel::closeClient(int fd)
 {
    //从红黑树下摘除
     epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
-    clients.erase(fd); // 销毁 TcpChannel，自动关闭客户端 fd。
+    clients_.erase(fd); // 销毁 TcpChannel，自动关闭客户端 fd。
     std::cout << "Client disconnected: " << fd << std::endl;
 }
 
-void Kernel::acceptConnections(const ListenChannel& listener, std::unordered_map<int, std::unique_ptr<TcpChannel>>& clients)
+void Kernel::acceptConnections()
 {
     for (;;) {
-        int client_fd = listener.acceptClient();
+        int client_fd = listener_.acceptClient();
         if (client_fd < 0) {
             if (errno == EINTR) continue;
             if (errno != EAGAIN && errno != EWOULDBLOCK) std::perror("accept4");
@@ -51,15 +50,15 @@ void Kernel::acceptConnections(const ListenChannel& listener, std::unordered_map
             close(client_fd);
             continue;
         }
-        clients.emplace(client_fd, std::unique_ptr<TcpChannel>(new TcpChannel(client_fd)));
+        clients_.emplace(client_fd, std::unique_ptr<TcpChannel>(new TcpChannel(client_fd)));
         std::cout << "Client connected: " << client_fd << std::endl;
     }
 }
 
-void Kernel::handleClientEvent(int fd, std::uint32_t flags, std::unordered_map<int, std::unique_ptr<TcpChannel>>& clients)
+void Kernel::handleClientEvent(int fd, std::uint32_t flags)
 {
-    auto it = clients.find(fd);
-    if (it == clients.end()) return;
+    auto it = clients_.find(fd);
+    if (it == clients_.end()) return;
     TcpChannel& channel = *it->second;
 
     // 按顺序处理：检查错误、接收、发送、更新事件或关闭连接。
@@ -76,18 +75,18 @@ void Kernel::handleClientEvent(int fd, std::uint32_t flags, std::unordered_map<i
     } else {
         ok = false;
     }
-    if (!ok) closeClient(fd, clients);
+    if (!ok) closeClient(fd);
 }
 
 int Kernel::run()
 {
     const int port = LISTEN_PORT;
-    ListenChannel listener;
-    int listen_fd = listener.open(port);
+    int listen_fd = listener_.open(port);
     if (listen_fd < 0) return 1;
     epoll_fd_ = epoll_create1(EPOLL_CLOEXEC);
     if (epoll_fd_ < 0) {
         std::perror("epoll_create1");
+        listener_.closeListener();
         return 1;
     }
     epoll_event event{};
@@ -98,10 +97,10 @@ int Kernel::run()
         std::perror("epoll_ctl ADD listener");
         close(epoll_fd_);
         epoll_fd_ = -1;
+        listener_.closeListener();
         return 1;
     }
 
-    std::unordered_map<int, std::unique_ptr<TcpChannel>> clients;
     epoll_event events[64];
     std::cout << "Echo server listening on port " << port << std::endl;
     for (;;) {
@@ -115,15 +114,15 @@ int Kernel::run()
         for (int i = 0; i < count; ++i) {
             int fd = events[i].data.fd;
             if (fd == listen_fd) {
-                acceptConnections(listener, clients);
+                acceptConnections();
             } else {
-                handleClientEvent(fd, events[i].events, clients);
+                handleClientEvent(fd, events[i].events);
             }
         }
     }
-    clients.clear(); // 销毁所有 TcpChannel，关闭剩余客户端 fd。
+    clients_.clear(); // 销毁所有 TcpChannel，关闭剩余客户端 fd。
     close(epoll_fd_);
     epoll_fd_ = -1;
-    // listener 析构时关闭监听 fd。
+    listener_.closeListener();
     return 1;
 }

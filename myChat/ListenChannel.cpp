@@ -6,7 +6,15 @@
 
 ListenChannel::~ListenChannel()
 {
-    if (listen_fd_ >= 0) close(listen_fd_);
+    closeListener();
+}
+
+void ListenChannel::closeListener()
+{
+    if (listen_fd_ >= 0) {
+        close(listen_fd_);
+        listen_fd_ = -1;
+    }
 }
 
 int ListenChannel::open(int port)
