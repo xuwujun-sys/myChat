@@ -1,6 +1,7 @@
 #pragma once
 #include "TcpChannel.h"
 #include "ListenChannel.h"
+#include "EchoHandler.h"
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
@@ -13,6 +14,7 @@ public:
 private:
     int epoll_fd_ = -1; // Kernel 管理的 epoll 实例。
     ListenChannel listener_;
+    EchoHandler handler_;
     std::unordered_map<int, std::unique_ptr<TcpChannel>> clients_;
     // 接收并注册所有等待接入的客户端。
     void acceptConnections();

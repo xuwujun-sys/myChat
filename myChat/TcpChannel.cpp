@@ -1,4 +1,5 @@
 #include "TcpChannel.h"
+#include "Handler.h"
 #include "config.h"
 #include <sys/socket.h>
 #include <cerrno>
@@ -8,20 +9,16 @@
 TcpChannel::TcpChannel(int fd) : Channel(fd) {}
 
 // 返回 false 表示发生错误，需要关闭连接。
-bool TcpChannel::receiveData()
+bool TcpChannel::receiveData(Handler& handler)
 {
     int fd = fd_;
     char buffer[4096];
     for (;;) {
         ssize_t n = recv(fd, buffer, sizeof(buffer), 0);
         if (n > 0) {
-            if (pending_.size() + static_cast<size_t>(n) > MAX_PENDING_BYTES) {
-                std::cerr << "Client send buffer limit exceeded: " << fd << std::endl;
-                return false;
-            }
-            pending_.append(buffer, static_cast<size_t>(n));
+            if (!handler.onData(*this, buffer, static_cast<size_t>(n))) return false;
         } else if (n == 0) {
-            read_closed_ = true; // 对方不再发送，但可能还在等回显。
+            read_closed_ = true; // 对方不再发送，但可能还在等待剩余数据。
             return true;
         } else {
             if (errno == EINTR) continue;
@@ -30,6 +27,16 @@ bool TcpChannel::receiveData()
             return false;
         }
     }
+}
+
+bool TcpChannel::queueSend(const char* data, std::size_t size)
+{
+    if (size > MAX_PENDING_BYTES - pending_.size()) {
+        std::cerr << "Client send buffer limit exceeded: " << fd_ << std::endl;
+        return false;
+    }
+    pending_.append(data, size);
+    return true;
 }
 /*
 由于单个通信fd的写缓冲区是有限制的所以不一定可以一次发完，如果一次可以发完那就发完了，如果没有发完的话，

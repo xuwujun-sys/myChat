@@ -28,7 +28,11 @@ void Kernel::closeClient(int fd)
 {
    //从红黑树下摘除
     epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
-    clients_.erase(fd); // 销毁 TcpChannel，自动关闭客户端 fd。
+    auto it = clients_.find(fd);
+    if (it != clients_.end()) {
+        handler_.onDisconnected(*it->second);
+        clients_.erase(it); // 销毁 TcpChannel，自动关闭客户端 fd。
+    }
     std::cout << "Client disconnected: " << fd << std::endl;
 }
 
@@ -50,7 +54,8 @@ void Kernel::acceptConnections()
             close(client_fd);
             continue;
         }
-        clients_.emplace(client_fd, std::unique_ptr<TcpChannel>(new TcpChannel(client_fd)));
+        auto client = clients_.emplace(client_fd, std::unique_ptr<TcpChannel>(new TcpChannel(client_fd)));
+        handler_.onConnected(*client.first->second);
         std::cout << "Client connected: " << client_fd << std::endl;
     }
 }
@@ -64,7 +69,7 @@ void Kernel::handleClientEvent(int fd, std::uint32_t flags)
     // 按顺序处理：检查错误、接收、发送、更新事件或关闭连接。
     bool ok = !(flags & EPOLLERR);
     if (ok && (flags & (EPOLLIN | EPOLLRDHUP | EPOLLHUP))) {
-        ok = channel.receiveData();
+        ok = channel.receiveData(handler_);
     }
     if (ok && channel.hasPendingData()) {
         ok = channel.sendData();
@@ -120,7 +125,7 @@ int Kernel::run()
             }
         }
     }
-    clients_.clear(); // 销毁所有 TcpChannel，关闭剩余客户端 fd。
+    while (!clients_.empty()) closeClient(clients_.begin()->first);
     close(epoll_fd_);
     epoll_fd_ = -1;
     listener_.closeListener();

@@ -2,6 +2,8 @@
 #include "Buffer.h"
 #include "Channel.h"
 
+class Handler;
+
 // 封装客户端 socket 的接收和发送逻辑。
 class TcpChannel : public Channel {
 public:
@@ -9,8 +11,10 @@ public:
     explicit TcpChannel(int fd);
     ~TcpChannel() override = default;
 
-    // 从 fd 接收数据并追加到 pending；发生需要关闭连接的错误时返回 false。
-    bool receiveData();
+    // 从 fd 接收数据并交给处理器；发生需要关闭连接的错误时返回 false。
+    bool receiveData(Handler& handler);
+    // 将数据加入待发送缓冲区；超过上限时返回 false。
+    bool queueSend(const char* data, std::size_t size);
     // 发送 pending 中的数据；暂时无法全部发送时保留剩余数据。
     // 成功或暂时不可写返回 true，发生需要关闭连接的错误时返回 false。
     bool sendData();
