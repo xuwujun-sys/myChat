@@ -1,5 +1,5 @@
 #pragma once
-#include <string>
+#include "Buffer.h"
 
 // 封装客户端 socket 的接收和发送逻辑。
 class TcpChannel {
@@ -22,6 +22,6 @@ public:
 
 private:
     int fd_;
-    std::string pending_; // 等待发送的数据。
+    Buffer pending_; // 等待发送的数据。
     bool read_closed_ = false; // 对端已结束发送，但仍可能等待接收回显。
 };

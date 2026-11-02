@@ -49,8 +49,8 @@ bool TcpChannel::sendData()
         // MSG_NOSIGNAL 避免向已断开的客户端发送时触发 SIGPIPE。
         ssize_t n = send(fd, pending_.data(), pending_.size(), MSG_NOSIGNAL);
         if (n > 0) {
-            //擦除已经发送的部分，等待下次继续发送
-            pending_.erase(0, static_cast<size_t>(n));
+            // 标记已发送的数据，等待下次继续发送剩余部分。
+            pending_.consume(static_cast<size_t>(n));
         } else {
             if (n < 0 && errno == EINTR) continue;
             if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return true;
