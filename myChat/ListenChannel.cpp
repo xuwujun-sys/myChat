@@ -4,9 +4,14 @@
 #include <unistd.h>
 #include <cstdio>
 
-void ListenChannel::closeListener()
+ListenChannel::~ListenChannel()
 {
     closeFd();
+}
+
+void ListenChannel::closeFd()
+{
+    Channel::closeFd();
 }
 
 int ListenChannel::open(int port)
@@ -19,11 +24,12 @@ int ListenChannel::open(int port)
         std::perror("socket");
         return -1;
     }
+    fd_ = listen_fd;
     int reuse = 1;
     //这是设置listen_fd的一个选项表述可以地址端口复用，对应tcp的timewait机制，使得当前服务器退出之后立马重启还能连上
     if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
         std::perror("setsockopt");
-        close(listen_fd);
+        closeFd();
         return -1;
     }
     sockaddr_in address{};
@@ -33,10 +39,9 @@ int ListenChannel::open(int port)
     if (bind(listen_fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0 ||
         listen(listen_fd, 128) < 0) {
         std::perror("bind/listen");
-        close(listen_fd);
+        closeFd();
         return -1;
     }
-    fd_ = listen_fd;
     return fd_;
 }
 

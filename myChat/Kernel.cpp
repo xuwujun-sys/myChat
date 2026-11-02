@@ -5,6 +5,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <iostream>
+#include <utility>
 
 //当前阶段使用水平触发（LT）和非阻塞 socket，这样的话recv和send都是非阻塞的了
 //ET与非阻塞的通信描述符搭配使用更多，LT和ET的最大的区别大概就是LT只要就绪就通知，ET只通知一次
@@ -41,16 +42,17 @@ void Kernel::acceptConnections()
             if (errno != EAGAIN && errno != EWOULDBLOCK) std::perror("accept4");
             break;
         }
+        std::unique_ptr<TcpChannel> channel(new TcpChannel(client_fd));
         epoll_event client_event{};
         client_event.events = EPOLLIN | EPOLLRDHUP;
         client_event.data.fd = client_fd;
         // 注册通信的文件描述符到 epoll。
         if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, client_fd, &client_event) < 0) {
             std::perror("epoll_ctl ADD client");
-            close(client_fd);
+            channel->closeFd();
             continue;
         }
-        clients_.emplace(client_fd, std::unique_ptr<TcpChannel>(new TcpChannel(client_fd)));
+        clients_.emplace(client_fd, std::move(channel));
         std::cout << "Client connected: " << client_fd << std::endl;
     }
 }
@@ -86,7 +88,7 @@ int Kernel::run()
     epoll_fd_ = epoll_create1(EPOLL_CLOEXEC);
     if (epoll_fd_ < 0) {
         std::perror("epoll_create1");
-        listener_.closeListener();
+        listener_.closeFd();
         return 1;
     }
     epoll_event event{};
@@ -97,7 +99,7 @@ int Kernel::run()
         std::perror("epoll_ctl ADD listener");
         close(epoll_fd_);
         epoll_fd_ = -1;
-        listener_.closeListener();
+        listener_.closeFd();
         return 1;
     }
 
@@ -123,6 +125,6 @@ int Kernel::run()
     clients_.clear(); // 销毁所有 TcpChannel，关闭剩余客户端 fd。
     close(epoll_fd_);
     epoll_fd_ = -1;
-    listener_.closeListener();
+    listener_.closeFd();
     return 1;
 }
