@@ -7,8 +7,7 @@ class TcpChannel : public Channel {
 public:
     // 一个通道对应一个客户端，通道销毁时关闭该 fd。
     explicit TcpChannel(int fd);
-    ~TcpChannel() override;
-    void closeFd() override;
+    ~TcpChannel() override = default;
 
     // 从 fd 接收数据并追加到 pending；发生需要关闭连接的错误时返回 false。
     bool receiveData();

@@ -8,10 +8,10 @@ public:
     Channel& operator=(const Channel&) = delete;
 
     int getFd() const { return fd_; }
-    // 关闭文件描述符并重置状态，可重复调用。
-    virtual void closeFd() = 0;
 
 protected:
     explicit Channel(int fd = -1) : fd_(fd) {}
+    // 关闭文件描述符并重置状态，可重复调用。
+    void closeFd();
     int fd_;
 };

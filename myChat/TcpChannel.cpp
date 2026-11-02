@@ -7,16 +7,6 @@
 
 TcpChannel::TcpChannel(int fd) : Channel(fd) {}
 
-TcpChannel::~TcpChannel()
-{
-    closeFd();
-}
-
-void TcpChannel::closeFd()
-{
-    Channel::closeFd();
-}
-
 // 返回 false 表示发生错误，需要关闭连接。
 bool TcpChannel::receiveData()
 {

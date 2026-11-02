@@ -1,7 +1,10 @@
 #include "Channel.h"
 #include <unistd.h>
 
-Channel::~Channel() = default;
+Channel::~Channel()
+{
+    closeFd();
+}
 
 void Channel::closeFd()
 {
