@@ -75,12 +75,14 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
+    <ClCompile Include="Buffer.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Kernel.cpp" />
     <ClCompile Include="ListenChannel.cpp" />
     <ClCompile Include="TcpChannel.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Buffer.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="Kernel.h" />
     <ClInclude Include="ListenChannel.h" />
