@@ -33,6 +33,52 @@ void Kernel::closeClient(int fd, std::unordered_map<int, std::unique_ptr<TcpChan
     std::cout << "Client disconnected: " << fd << std::endl;
 }
 
+void Kernel::acceptConnections(const ListenChannel& listener, std::unordered_map<int, std::unique_ptr<TcpChannel>>& clients)
+{
+    for (;;) {
+        int client_fd = listener.acceptClient();
+        if (client_fd < 0) {
+            if (errno == EINTR) continue;
+            if (errno != EAGAIN && errno != EWOULDBLOCK) std::perror("accept4");
+            break;
+        }
+        epoll_event client_event{};
+        client_event.events = EPOLLIN | EPOLLRDHUP;
+        client_event.data.fd = client_fd;
+        // 注册通信的文件描述符到 epoll。
+        if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, client_fd, &client_event) < 0) {
+            std::perror("epoll_ctl ADD client");
+            close(client_fd);
+            continue;
+        }
+        clients.emplace(client_fd, std::unique_ptr<TcpChannel>(new TcpChannel(client_fd)));
+        std::cout << "Client connected: " << client_fd << std::endl;
+    }
+}
+
+void Kernel::handleClientEvent(int fd, std::uint32_t flags, std::unordered_map<int, std::unique_ptr<TcpChannel>>& clients)
+{
+    auto it = clients.find(fd);
+    if (it == clients.end()) return;
+    TcpChannel& channel = *it->second;
+
+    // 按顺序处理：检查错误、接收、发送、更新事件或关闭连接。
+    bool ok = !(flags & EPOLLERR);
+    if (ok && (flags & (EPOLLIN | EPOLLRDHUP | EPOLLHUP))) {
+        ok = channel.receiveData();
+    }
+    if (ok && channel.hasPendingData()) {
+        ok = channel.sendData();
+    }
+    // 根据当前收发状态更新关注的事件。
+    if (ok && !(channel.isReadClosed() && !channel.hasPendingData())) {
+        ok = updateEvents(fd, channel);
+    } else {
+        ok = false;
+    }
+    if (!ok) closeClient(fd, clients);
+}
+
 int Kernel::run()
 {
     const int port = LISTEN_PORT;
@@ -68,49 +114,11 @@ int Kernel::run()
         }
         for (int i = 0; i < count; ++i) {
             int fd = events[i].data.fd;
-            uint32_t flags = events[i].events;
             if (fd == listen_fd) {
-                for (;;) {
-                    int client_fd = listener.acceptClient();
-                    if (client_fd < 0) {
-                        if (errno == EINTR) continue;
-                        if (errno != EAGAIN && errno != EWOULDBLOCK) std::perror("accept4");
-                        break;
-                    }
-                    epoll_event client_event{};
-                    client_event.events = EPOLLIN | EPOLLRDHUP;
-                    client_event.data.fd = client_fd;
-                    //注册通信的文件描述符到epoll
-                    if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, client_fd, &client_event) < 0) {
-                        std::perror("epoll_ctl ADD client");
-                        close(client_fd);
-                        continue;
-                    }
-                    clients.emplace(client_fd, std::unique_ptr<TcpChannel>(new TcpChannel(client_fd)));
-                    std::cout << "Client connected: " << client_fd << std::endl;
-                }
-                continue;
-            }
-
-            auto it = clients.find(fd);
-            if (it == clients.end()) continue;
-            TcpChannel& channel = *it->second;
-
-            // 按顺序处理：检查错误、接收、发送、更新事件或关闭连接。
-            bool ok = !(flags & EPOLLERR);
-            if (ok && (flags & (EPOLLIN | EPOLLRDHUP | EPOLLHUP))) {
-                ok = channel.receiveData();
-            }
-            if (ok && channel.hasPendingData()) {
-                ok = channel.sendData();
-            }
-            //由于前面的收发当前通信文件描述符需要监听的事件有所变化需要跟新
-            if (ok && !(channel.isReadClosed() && !channel.hasPendingData())) {
-                ok = updateEvents(fd, channel);
+                acceptConnections(listener, clients);
             } else {
-                ok = false;
+                handleClientEvent(fd, events[i].events, clients);
             }
-            if (!ok) closeClient(fd, clients);
         }
     }
     clients.clear(); // 销毁所有 TcpChannel，关闭剩余客户端 fd。
