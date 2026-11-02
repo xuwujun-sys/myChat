@@ -4,22 +4,14 @@
 #include <unistd.h>
 #include <cstdio>
 
-ListenChannel::~ListenChannel()
-{
-    closeListener();
-}
-
 void ListenChannel::closeListener()
 {
-    if (listen_fd_ >= 0) {
-        close(listen_fd_);
-        listen_fd_ = -1;
-    }
+    closeFd();
 }
 
 int ListenChannel::open(int port)
 {
-    if (listen_fd_ >= 0) return listen_fd_;
+    if (fd_ >= 0) return fd_;
     //SOCK_NONBLOCK | SOCK_CLOEXEC分别是把listen_fd设置成非阻塞和当使用exe执行系列的函数时不会对外泄露fd，他们都是这个文件描述符的属性
     //这里注册成非阻塞的话后续accept就是非阻塞的，如果没有对端没有连接不会死等而是返回负数并且设置errorn
     int listen_fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
@@ -44,11 +36,11 @@ int ListenChannel::open(int port)
         close(listen_fd);
         return -1;
     }
-    listen_fd_ = listen_fd;
-    return listen_fd_;
+    fd_ = listen_fd;
+    return fd_;
 }
 
 int ListenChannel::acceptClient() const
 {
-    return accept4(listen_fd_, nullptr, nullptr, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    return accept4(fd_, nullptr, nullptr, SOCK_NONBLOCK | SOCK_CLOEXEC);
 }

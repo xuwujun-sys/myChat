@@ -1,17 +1,11 @@
 #include "TcpChannel.h"
 #include "config.h"
 #include <sys/socket.h>
-#include <unistd.h>
 #include <cerrno>
 #include <cstdio>
 #include <iostream>
 
-TcpChannel::TcpChannel(int fd) : fd_(fd) {}
-
-TcpChannel::~TcpChannel()
-{
-    if (fd_ >= 0) close(fd_);
-}
+TcpChannel::TcpChannel(int fd) : Channel(fd) {}
 
 // 返回 false 表示发生错误，需要关闭连接。
 bool TcpChannel::receiveData()
