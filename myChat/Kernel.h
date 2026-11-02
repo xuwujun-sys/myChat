@@ -1,7 +1,7 @@
 #pragma once
 #include "TcpChannel.h"
 #include "ListenChannel.h"
-#include "EchoHandler.h"
+#include "Handler.h"
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
@@ -9,12 +9,14 @@
 // 管理 epoll 事件循环，并协调监听通道和客户端收发。
 class Kernel {
 public:
+    // handler 的生命周期需要覆盖 Kernel。
+    explicit Kernel(Handler& handler) : handler_(handler) {}
     // 创建服务器并运行事件循环；启动失败或事件循环出错时返回非零值。
     int run();
 private:
     int epoll_fd_ = -1; // Kernel 管理的 epoll 实例。
     ListenChannel listener_;
-    EchoHandler handler_;
+    Handler& handler_;
     std::unordered_map<int, std::unique_ptr<TcpChannel>> clients_;
     // 接收并注册所有等待接入的客户端。
     void acceptConnections();
