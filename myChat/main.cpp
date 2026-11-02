@@ -1,9 +1,9 @@
 #include "Kernel.h"
-#include "EchoHandler.h"
+#include "HttpHandler.h"
 
 int main()
 {
-    EchoHandler handler;
+    HttpHandler handler;
     Kernel server(handler);
     return server.run();
 }

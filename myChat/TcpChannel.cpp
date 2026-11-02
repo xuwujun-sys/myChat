@@ -18,7 +18,7 @@ bool TcpChannel::receiveData(Handler& handler)
     for (;;) {
         ssize_t n = recv(fd, buffer, sizeof(buffer), 0);
         if (n > 0) {
-            if (!handler.onData(*this, buffer, static_cast<size_t>(n))) return false;
+            if (!close_after_send_ && !handler.onData(*this, buffer, static_cast<size_t>(n))) return false;
         } else if (n == 0) {
             read_closed_ = true; // 对方不再发送，但可能还在等待剩余数据。
             return true;

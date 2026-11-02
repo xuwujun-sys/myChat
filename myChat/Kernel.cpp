@@ -78,7 +78,7 @@ void Kernel::handleClientEvent(int fd, std::uint32_t flags)
         ok = channel.sendData();
     }
     // 根据当前收发状态更新关注的事件。
-    if (ok && !(channel.isReadClosed() && !channel.hasPendingData())) {
+    if (ok && !((channel.isReadClosed() || channel.shouldCloseAfterSend()) && !channel.hasPendingData())) {
         ok = updateEvents(fd, channel);
     } else {
         ok = false;
@@ -110,7 +110,7 @@ int Kernel::run()
     }
 
     epoll_event events[64];
-    std::cout << "Echo server listening on port " << port << std::endl;
+    std::cout << "Server listening on port " << port << std::endl;
     for (;;) {
         //如果监听到文件描述符注册的事件了就返回，一次最多返回64个
         int count = epoll_wait(epoll_fd_, events, 64, -1);

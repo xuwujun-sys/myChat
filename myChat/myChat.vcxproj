@@ -78,6 +78,7 @@
     <ClCompile Include="Buffer.cpp" />
     <ClCompile Include="Channel.cpp" />
     <ClCompile Include="EchoHandler.cpp" />
+    <ClCompile Include="HttpHandler.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Kernel.cpp" />
     <ClCompile Include="ListenChannel.cpp" />
@@ -88,6 +89,7 @@
     <ClInclude Include="Channel.h" />
     <ClInclude Include="EchoHandler.h" />
     <ClInclude Include="Handler.h" />
+    <ClInclude Include="HttpHandler.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="Kernel.h" />
     <ClInclude Include="ListenChannel.h" />

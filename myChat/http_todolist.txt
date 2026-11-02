@@ -8,11 +8,11 @@
     [x] 复用 Kernel、TcpChannel 和 Handler 接口
     [x] 待发送数据加入空队列时通知事件循环
 
-[ ] 2. 创建 HttpHandler，返回固定 HTTP 响应
-    [ ] 实现 Handler 接口，在 main 中选择 HttpHandler
-    [ ] 返回状态行、响应头、空行和固定内容
-    [ ] 支持响应发送完成后关闭连接，避免丢失待发送数据
-    [ ] 验证：curl 能收到完整响应，回显服务仍能切换使用
+[x] 2. 创建 HttpHandler，返回固定 HTTP 响应
+    [x] 实现 Handler 接口，在 main 中选择 HttpHandler
+    [x] 返回状态行、响应头、空行和固定内容
+    [x] 支持响应发送完成后关闭连接，避免丢失待发送数据
+    [x] 验证：curl 能收到完整响应，回显服务仍能切换使用
 
 [ ] 3. 解析 HTTP 请求
     [ ] 为每个连接保存接收状态，断开连接时清理
