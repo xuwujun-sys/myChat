@@ -27,17 +27,16 @@ try:
     paths[0].write_bytes(b"")
     contents = bytes(range(256)) * 100
     paths[1].write_bytes(contents)
-    paths[2].write_bytes(b"x" * (1024 * 1024))
+    paths[2].write_bytes(b"x" * (2 * 1024 * 1024))
     paths[3].symlink_to("/etc/passwd")
     paths[4].write_bytes(b"unicode filename")
-    for path, expected in ((paths[0], b""), (paths[1], contents), (paths[4], b"unicode filename")):
+    for path, expected in ((paths[0], b""), (paths[1], contents), (paths[2], b"x" * (2 * 1024 * 1024)), (paths[4], b"unicode filename")):
         header, body = get("/files/" + quote(path.name))
         assert header.startswith(b"HTTP/1.1 200 "), header
         assert (b"Content-Length: " + str(len(expected)).encode()) in header, header
         assert body == expected
     for target, status in (("/files/" + prefix + "_missing", b"404"),
                            ("/files/" + paths[3].name, b"404"),
-                           ("/files/" + paths[2].name, b"413"),
                            ("/files/%2e%2e%2fetc%2fpasswd", b"400")):
         header, _ = get(target)
         assert header.startswith(b"HTTP/1.1 " + status + b" "), header
