@@ -45,6 +45,7 @@ int parseHeader(const std::string& header, HttpRequest& request)
     bool hasHost = false;
     bool hasLength = false;
     bool hasTransferEncoding = false;
+    bool hasContentEncoding = false;
     std::size_t pos = end + 2;
     while (pos < header.size()) {
         end = header.find("\r\n", pos);
@@ -75,11 +76,13 @@ int parseHeader(const std::string& header, HttpRequest& request)
             }
         } else if (name == "transfer-encoding") {
             hasTransferEncoding = true;
+        } else if (name == "content-encoding") {
+            hasContentEncoding = true;
         }
         pos = end + 2;
     }
     if (!hasHost || (hasTransferEncoding && hasLength)) return 400;
-    if (hasTransferEncoding) return 501;
+    if (hasTransferEncoding || hasContentEncoding) return 501;
     if (request.method == "PUT" && !hasLength) return 411;
     return 0;
 }
@@ -89,8 +92,10 @@ bool respond(TcpChannel& channel, int status)
 {
     const char* response;
     switch (status) {
+    case 201: response = "HTTP/1.1 201 Created\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
     case 400: response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
     case 404: response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
+    case 409: response = "HTTP/1.1 409 Conflict\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
     case 411: response = "HTTP/1.1 411 Length Required\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
     case 413: response = "HTTP/1.1 413 Content Too Large\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
     case 431: response = "HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
@@ -179,6 +184,45 @@ bool sendFile(TcpChannel& channel, const std::string& path)
     channel.closeAfterSend();
     return true;
 }
+
+// 将完整请求体写入临时文件，再创建目标文件；不覆盖已有文件。
+bool saveFile(TcpChannel& channel, const std::string& filename, const std::string& body)
+{
+    int directory = open(HTTP_FILES_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (directory < 0) return respond(channel, 500);
+
+    static unsigned long nextId = 0;
+    std::string temporary;
+    int file = -1;
+    for (int attempts = 0; attempts < 100; ++attempts) {
+        temporary = ".upload-" + std::to_string(getpid()) + "-" + std::to_string(nextId++);
+        // 临时文件不能和客户端请求的目标文件同名。
+        if (temporary == filename) continue;
+        file = openat(directory, temporary.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+        if (file >= 0 || errno != EEXIST) break;
+    }
+    if (file < 0) {
+        close(directory);
+        return respond(channel, 500);
+    }
+    std::size_t written = 0;
+    while (written < body.size()) {
+        ssize_t count = write(file, body.data() + written, body.size() - written);
+        if (count < 0 && errno == EINTR) continue;
+        if (count <= 0) break;
+        written += static_cast<std::size_t>(count);
+    }
+    bool ok = written == body.size();
+    if (close(file) < 0) ok = false;
+    int status = 201;
+    if (!ok) status = 500;
+    else if (linkat(directory, temporary.c_str(), directory, filename.c_str(), 0) < 0) {
+        status = errno == EEXIST ? 409 : 500;
+    }
+    unlinkat(directory, temporary.c_str(), 0);
+    close(directory);
+    return respond(channel, status);
+}
 }
 
 // 客户端连接时创建独立的请求状态。
@@ -202,15 +246,24 @@ bool HttpHandler::onData(TcpChannel& channel, const char* data, std::size_t size
         if (headerSize > MAX_HTTP_HEADER_BYTES) return respond(channel, 431);
         int status = parseHeader(state.header.substr(0, headerSize), state.request);
         if (status != 0) return respond(channel, status);
+        const std::string prefix = "/files/";
+        if (state.request.method == "PUT" && state.request.path.compare(0, prefix.size(), prefix) == 0) {
+            if (!decodeFilename(state.request.path.substr(prefix.size()), state.filename)) return respond(channel, 400);
+            if (state.request.content_length > MAX_UPLOAD_BYTES) return respond(channel, 413);
+        }
         state.header_complete = true;
         state.body_received = state.header.size() - headerSize;
+        if (state.body_received > state.request.content_length) return respond(channel, 400);
+        if (!state.filename.empty()) state.body.append(state.header.data() + headerSize, state.body_received);
         state.header.clear();
     } else {
         if (size > state.request.content_length - state.body_received) return respond(channel, 400);
+        if (!state.filename.empty()) state.body.append(data, size);
         state.body_received += size;
     }
     if (state.body_received > state.request.content_length) return respond(channel, 400);
     if (state.body_received == state.request.content_length) {
+        if (!state.filename.empty()) return saveFile(channel, state.filename, state.body);
         const std::string prefix = "/files/";
         if (state.request.method == "GET" && state.request.path.compare(0, prefix.size(), prefix) == 0) {
             return sendFile(channel, state.request.path.substr(prefix.size()));

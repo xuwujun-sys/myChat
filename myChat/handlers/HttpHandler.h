@@ -10,7 +10,7 @@ struct HttpRequest {
     std::size_t content_length = 0;
 };
 
-// 每个连接接收一个 HTTP 请求，支持小文件下载。
+// 每个连接接收一个 HTTP 请求，支持小文件上传和下载。
 class HttpHandler : public Handler {
 public:
     void onConnected(TcpChannel& channel) override;
@@ -20,6 +20,8 @@ public:
 private:
     struct RequestState {
         std::string header;
+        std::string body; // 小文件上传时保存请求体。
+        std::string filename;
         HttpRequest request;
         std::size_t body_received = 0;
         bool header_complete = false;
