@@ -6,12 +6,14 @@
 
 namespace {
 
+// 判断字符是否可以用于 HTTP 方法或请求头名称。
 bool isTokenChar(unsigned char c)
 {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
         (c >= '0' && c <= '9') || std::string("!#$%&'*+-.^_`|~").find(c) != std::string::npos;
 }
 
+// 去除请求头值两端的空格和制表符。
 std::string trim(const std::string& value)
 {
     std::size_t start = value.find_first_not_of(" \t");
@@ -19,7 +21,7 @@ std::string trim(const std::string& value)
     return value.substr(start, value.find_last_not_of(" \t") - start + 1);
 }
 
-// 返回状态码；0 表示请求头有效。
+// 解析并校验请求行和请求头；返回 0 表示有效，否则返回错误状态码。
 int parseHeader(const std::string& header, HttpRequest& request)
 {
     std::size_t end = header.find("\r\n");
@@ -78,6 +80,7 @@ int parseHeader(const std::string& header, HttpRequest& request)
     return 0;
 }
 
+// 按状态码生成响应，发送完成后关闭连接。
 bool respond(TcpChannel& channel, int status)
 {
     const char* response;
@@ -95,11 +98,13 @@ bool respond(TcpChannel& channel, int status)
 }
 }
 
+// 客户端连接时创建独立的请求状态。
 void HttpHandler::onConnected(TcpChannel& channel)
 {
     requests_.emplace(channel.getFd(), RequestState{});
 }
 
+// 累积并解析收到的数据，在请求完整或出错时返回响应。
 bool HttpHandler::onData(TcpChannel& channel, const char* data, std::size_t size)
 {
     RequestState& state = requests_.at(channel.getFd());
@@ -126,6 +131,7 @@ bool HttpHandler::onData(TcpChannel& channel, const char* data, std::size_t size
     return true;
 }
 
+// 客户端断开时删除对应的请求状态。
 void HttpHandler::onDisconnected(TcpChannel& channel)
 {
     requests_.erase(channel.getFd());
