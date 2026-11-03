@@ -4,8 +4,8 @@ import socket
 import uuid
 from urllib.parse import quote
 
-directory = Path("files")
-directory.mkdir(exist_ok=True)
+# 与 config/config.h 中的 HTTP_FILES_DIR 保持一致。
+directory = Path("/home/xuwu/Desktop/httptest")
 prefix = "test_" + uuid.uuid4().hex
 paths = [directory / (prefix + suffix) for suffix in ("_empty", "_binary", "_large", "_link", "_中文")]
 
