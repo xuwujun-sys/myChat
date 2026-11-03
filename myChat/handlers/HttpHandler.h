@@ -10,7 +10,7 @@ struct HttpRequest {
     std::size_t content_length = 0;
 };
 
-// 每个连接接收一个 HTTP 请求，暂时返回固定响应。
+// 每个连接接收一个 HTTP 请求，支持小文件下载。
 class HttpHandler : public Handler {
 public:
     void onConnected(TcpChannel& channel) override;
