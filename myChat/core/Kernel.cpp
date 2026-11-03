@@ -1,5 +1,5 @@
 #include "Kernel.h"
-#include "config.h"
+#include "../config/config.h"
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <cerrno>

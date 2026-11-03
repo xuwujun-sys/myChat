@@ -1,5 +1,5 @@
-#include "Kernel.h"
-#include "HttpHandler.h"
+#include "core/Kernel.h"
+#include "handlers/HttpHandler.h"
 
 int main()
 {

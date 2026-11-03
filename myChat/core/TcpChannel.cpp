@@ -1,6 +1,6 @@
 #include "TcpChannel.h"
-#include "Handler.h"
-#include "config.h"
+#include "../handlers/Handler.h"
+#include "../config/config.h"
 #include <sys/socket.h>
 #include <cerrno>
 #include <cstdio>

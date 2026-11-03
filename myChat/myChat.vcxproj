@@ -75,25 +75,25 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
-    <ClCompile Include="Buffer.cpp" />
-    <ClCompile Include="Channel.cpp" />
-    <ClCompile Include="EchoHandler.cpp" />
-    <ClCompile Include="HttpHandler.cpp" />
+    <ClCompile Include="core\Buffer.cpp" />
+    <ClCompile Include="core\Channel.cpp" />
+    <ClCompile Include="handlers\EchoHandler.cpp" />
+    <ClCompile Include="handlers\HttpHandler.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Kernel.cpp" />
-    <ClCompile Include="ListenChannel.cpp" />
-    <ClCompile Include="TcpChannel.cpp" />
+    <ClCompile Include="core\Kernel.cpp" />
+    <ClCompile Include="core\ListenChannel.cpp" />
+    <ClCompile Include="core\TcpChannel.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Buffer.h" />
-    <ClInclude Include="Channel.h" />
-    <ClInclude Include="EchoHandler.h" />
-    <ClInclude Include="Handler.h" />
-    <ClInclude Include="HttpHandler.h" />
-    <ClInclude Include="config.h" />
-    <ClInclude Include="Kernel.h" />
-    <ClInclude Include="ListenChannel.h" />
-    <ClInclude Include="TcpChannel.h" />
+    <ClInclude Include="core\Buffer.h" />
+    <ClInclude Include="core\Channel.h" />
+    <ClInclude Include="handlers\EchoHandler.h" />
+    <ClInclude Include="handlers\Handler.h" />
+    <ClInclude Include="handlers\HttpHandler.h" />
+    <ClInclude Include="config\config.h" />
+    <ClInclude Include="core\Kernel.h" />
+    <ClInclude Include="core\ListenChannel.h" />
+    <ClInclude Include="core\TcpChannel.h" />
   </ItemGroup>
   <ItemDefinitionGroup />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
