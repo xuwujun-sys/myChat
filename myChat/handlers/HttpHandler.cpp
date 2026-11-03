@@ -245,6 +245,7 @@ bool HttpHandler::onData(TcpChannel& channel, const char* data, std::size_t size
         std::size_t headerSize = end + 4;
         if (headerSize > MAX_HTTP_HEADER_BYTES) return respond(channel, 431);
         int status = parseHeader(state.header.substr(0, headerSize), state.request);
+
         if (status != 0) return respond(channel, status);
         const std::string prefix = "/files/";
         if (state.request.method == "PUT" && state.request.path.compare(0, prefix.size(), prefix) == 0) {
