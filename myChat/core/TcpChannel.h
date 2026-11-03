@@ -2,6 +2,7 @@
 #include "Buffer.h"
 #include "Channel.h"
 #include <functional>
+#include <chrono>
 
 class Handler;
 
@@ -26,10 +27,12 @@ public:
     bool hasPendingData() const { return !pending_.empty(); }
     bool isReadClosed() const { return read_closed_; }
     bool shouldCloseAfterSend() const { return close_after_send_; }
+    bool isIdle() const;
 
 private:
     Buffer pending_; // 等待发送的数据。
     bool read_closed_ = false; // 对端已结束发送，但仍可能等待接收回显。
     bool close_after_send_ = false;
+    std::chrono::steady_clock::time_point last_activity_ = std::chrono::steady_clock::now();
     std::function<bool(const TcpChannel&)> notify_send_; // 通知事件循环关注可写事件。
 };

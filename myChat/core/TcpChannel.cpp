@@ -15,9 +15,12 @@ bool TcpChannel::receiveData(Handler& handler)
 {
     int fd = fd_;
     char buffer[4096];
-    for (;;) {
+    std::size_t received = 0;
+    while (received < 256 * 1024) {
         ssize_t n = recv(fd, buffer, sizeof(buffer), 0);
         if (n > 0) {
+            last_activity_ = std::chrono::steady_clock::now();
+            received += static_cast<std::size_t>(n);
             if (!close_after_send_ && !handler.onData(*this, buffer, static_cast<size_t>(n))) return false;
         } else if (n == 0) {
             read_closed_ = true; // 对方不再发送，但可能还在等待剩余数据。
@@ -29,6 +32,7 @@ bool TcpChannel::receiveData(Handler& handler)
             return false;
         }
     }
+    return true;
 }
 
 bool TcpChannel::queueSend(const char* data, std::size_t size)
@@ -57,6 +61,7 @@ bool TcpChannel::sendData()
         // MSG_NOSIGNAL 避免向已断开的客户端发送时触发 SIGPIPE。
         ssize_t n = send(fd, pending_.data(), pending_.size(), MSG_NOSIGNAL);
         if (n > 0) {
+            last_activity_ = std::chrono::steady_clock::now();
             // 标记已发送的数据，等待下次继续发送剩余部分。
             pending_.consume(static_cast<size_t>(n));
         } else {
@@ -67,5 +72,11 @@ bool TcpChannel::sendData()
         }
     }
     return true;
+}
+
+bool TcpChannel::isIdle() const
+{
+    return std::chrono::steady_clock::now() - last_activity_ >=
+        std::chrono::seconds(CONNECTION_IDLE_SECONDS);
 }
 

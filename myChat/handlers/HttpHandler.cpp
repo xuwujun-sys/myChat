@@ -1,10 +1,12 @@
 #include "HttpHandler.h"
+#include "FilePage.h"
 #include "../core/TcpChannel.h"
 #include "../config/config.h"
 #include <cctype>
 #include <cerrno>
 #include <fcntl.h>
 #include <limits>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -131,98 +133,73 @@ bool decodeFilename(const std::string& path, std::string& filename)
         if (c < 32 || c == 127 || c == '/' || c == '\\') return false;
         filename.push_back(static_cast<char>(c));
     }
-    return !filename.empty() && filename != "." && filename != "..";
+    return !filename.empty() && filename != "." && filename != ".." && filename.compare(0, 8, ".upload-") != 0;
 }
 
-// 读取文件目录中的小文件，并发送包含长度的 HTTP 响应。
-bool sendFile(TcpChannel& channel, const std::string& path)
+// 仅将有效 UTF-8 文件名输出到 JSON，避免产生无效响应。
+bool validUtf8(const std::string& text)
 {
-    std::string filename;
-    if (!decodeFilename(path, filename)) return respond(channel, 400);
-    int directory = open(HTTP_FILES_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (directory < 0) return respond(channel, 500);
-    int file = openat(directory, filename.c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
-    int openError = errno;
-    close(directory);
-    if (file < 0) return respond(channel, openError == ENOENT || openError == ELOOP ? 404 : 500);
-
-    struct stat info{};
-    if (fstat(file, &info) < 0) {
-        close(file);
-        return respond(channel, 500);
-    }
-    if (!S_ISREG(info.st_mode)) {
-        close(file);
-        return respond(channel, 404);
-    }
-    if (info.st_size < 0 || static_cast<unsigned long long>(info.st_size) > MAX_PENDING_BYTES) {
-        close(file);
-        return respond(channel, 413);
-    }
-    std::size_t size = static_cast<std::size_t>(info.st_size);
-    std::string response = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: " +
-        std::to_string(size) + "\r\nConnection: close\r\n\r\n";
-    if (size > MAX_PENDING_BYTES - response.size()) {
-        close(file);
-        return respond(channel, 413);
-    }
-    char buffer[4096];
-    std::size_t remaining = size;
-    while (remaining > 0) {
-        std::size_t amount = remaining < sizeof(buffer) ? remaining : sizeof(buffer);
-        ssize_t count = read(file, buffer, amount);
-        if (count < 0 && errno == EINTR) continue;
-        if (count <= 0) {
-            close(file);
-            return respond(channel, 500);
+    for (std::size_t i = 0; i < text.size();) {
+        unsigned char c = static_cast<unsigned char>(text[i++]);
+        if (c < 0x80) continue;
+        int n; unsigned int code;
+        if (c >= 0xc2 && c <= 0xdf) { n = 1; code = c & 0x1f; }
+        else if (c >= 0xe0 && c <= 0xef) { n = 2; code = c & 0x0f; }
+        else if (c >= 0xf0 && c <= 0xf4) { n = 3; code = c & 0x07; }
+        else return false;
+        if (i + n > text.size()) return false;
+        for (int j = 0; j < n; ++j) {
+            unsigned char next = static_cast<unsigned char>(text[i++]);
+            if ((next & 0xc0) != 0x80) return false;
+            code = (code << 6) | (next & 0x3f);
         }
-        response.append(buffer, static_cast<std::size_t>(count));
-        remaining -= static_cast<std::size_t>(count);
+        if ((n == 2 && code < 0x800) || (n == 3 && code < 0x10000) ||
+            (code >= 0xd800 && code <= 0xdfff) || code > 0x10ffff) return false;
     }
-    close(file);
-    if (!channel.queueSend(response.data(), response.size())) return false;
+    return true;
+}
+
+bool sendContent(TcpChannel& channel, const char* type, const std::string& body)
+{
+    std::string header = std::string("HTTP/1.1 200 OK\r\nContent-Type: ") + type +
+        "\r\nContent-Length: " + std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n";
+    if (header.size() + body.size() > MAX_PENDING_BYTES) return respond(channel, 500);
+    if (!channel.queueSend(header.data(), header.size()) || !channel.queueSend(body.data(), body.size())) return false;
     channel.closeAfterSend();
     return true;
 }
 
-// 将完整请求体写入临时文件，再创建目标文件；不覆盖已有文件。
-bool saveFile(TcpChannel& channel, const std::string& filename, const std::string& body)
+bool sendFileList(TcpChannel& channel)
 {
-    int directory = open(HTTP_FILES_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (directory < 0) return respond(channel, 500);
-
-    static unsigned long nextId = 0;
-    std::string temporary;
-    int file = -1;
-    for (int attempts = 0; attempts < 100; ++attempts) {
-        temporary = ".upload-" + std::to_string(getpid()) + "-" + std::to_string(nextId++);
-        // 临时文件不能和客户端请求的目标文件同名。
-        if (temporary == filename) continue;
-        file = openat(directory, temporary.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
-        if (file >= 0 || errno != EEXIST) break;
+    DIR* directory = opendir(HTTP_FILES_DIR);
+    if (!directory) return respond(channel, 500);
+    std::string result = "[";
+    bool first = true;
+    int error = 0;
+    for (;;) {
+        errno = 0;
+        dirent* entry = readdir(directory);
+        if (!entry) { error = errno; break; }
+        std::string name(entry->d_name);
+        if (name == "." || name == ".." || name.compare(0, 8, ".upload-") == 0 || !validUtf8(name)) continue;
+        bool valid = true;
+        for (unsigned char c : name) if (c < 32 || c == 127 || c == '\\') valid = false;
+        if (!valid) continue;
+        struct stat info{};
+        if (fstatat(dirfd(directory), name.c_str(), &info, AT_SYMLINK_NOFOLLOW) < 0 || !S_ISREG(info.st_mode)) continue;
+        std::string escaped;
+        for (char c : name) { if (c == '"' || c == '\\') escaped += '\\'; escaped += c; }
+        if (!first) result += ',';
+        first = false;
+        result += "{\"name\":\"" + escaped + "\",\"size\":" + std::to_string(info.st_size) + "}";
+        if (result.size() > MAX_PENDING_BYTES - 512) { closedir(directory); return respond(channel, 500); }
     }
-    if (file < 0) {
-        close(directory);
-        return respond(channel, 500);
-    }
-    std::size_t written = 0;
-    while (written < body.size()) {
-        ssize_t count = write(file, body.data() + written, body.size() - written);
-        if (count < 0 && errno == EINTR) continue;
-        if (count <= 0) break;
-        written += static_cast<std::size_t>(count);
-    }
-    bool ok = written == body.size();
-    if (close(file) < 0) ok = false;
-    int status = 201;
-    if (!ok) status = 500;
-    else if (linkat(directory, temporary.c_str(), directory, filename.c_str(), 0) < 0) {
-        status = errno == EEXIST ? 409 : 500;
-    }
-    unlinkat(directory, temporary.c_str(), 0);
-    close(directory);
-    return respond(channel, status);
+    closedir(directory);
+    if (error) return respond(channel, 500);
+    result += ']';
+    return sendContent(channel, "application/json; charset=utf-8", result);
 }
+
 }
 
 // 客户端连接时创建独立的请求状态。
@@ -245,37 +222,141 @@ bool HttpHandler::onData(TcpChannel& channel, const char* data, std::size_t size
         std::size_t headerSize = end + 4;
         if (headerSize > MAX_HTTP_HEADER_BYTES) return respond(channel, 431);
         int status = parseHeader(state.header.substr(0, headerSize), state.request);
-
         if (status != 0) return respond(channel, status);
         const std::string prefix = "/files/";
         if (state.request.method == "PUT" && state.request.path.compare(0, prefix.size(), prefix) == 0) {
             if (!decodeFilename(state.request.path.substr(prefix.size()), state.filename)) return respond(channel, 400);
             if (state.request.content_length > MAX_UPLOAD_BYTES) return respond(channel, 413);
+            if (!startUpload(channel, state)) return false;
+            if (channel.shouldCloseAfterSend()) return true;
         }
         state.header_complete = true;
         state.body_received = state.header.size() - headerSize;
         if (state.body_received > state.request.content_length) return respond(channel, 400);
-        if (!state.filename.empty()) state.body.append(state.header.data() + headerSize, state.body_received);
+        if (state.file_fd >= 0 && !writeUpload(channel, state, state.header.data() + headerSize, state.body_received)) return false;
+        if (channel.shouldCloseAfterSend()) return true;
         state.header.clear();
     } else {
         if (size > state.request.content_length - state.body_received) return respond(channel, 400);
-        if (!state.filename.empty()) state.body.append(data, size);
+        if (state.file_fd >= 0 && !writeUpload(channel, state, data, size)) return false;
+        if (channel.shouldCloseAfterSend()) return true;
         state.body_received += size;
     }
-    if (state.body_received > state.request.content_length) return respond(channel, 400);
     if (state.body_received == state.request.content_length) {
-        if (!state.filename.empty()) return saveFile(channel, state.filename, state.body);
+        if (state.file_fd >= 0) return finishUpload(channel, state);
         const std::string prefix = "/files/";
+        if (state.request.method == "GET" && state.request.path == "/") {
+            std::string page(FILE_PAGE);
+            const std::string placeholder = "__MAX_UPLOAD_BYTES__";
+            page.replace(page.find(placeholder), placeholder.size(), std::to_string(MAX_UPLOAD_BYTES));
+            return sendContent(channel, "text/html; charset=utf-8", page);
+        }
+        if (state.request.method == "GET" && state.request.path == "/api/files")
+            return sendFileList(channel);
         if (state.request.method == "GET" && state.request.path.compare(0, prefix.size(), prefix) == 0) {
-            return sendFile(channel, state.request.path.substr(prefix.size()));
+            return startDownload(channel, state, state.request.path.substr(prefix.size()));
         }
         return respond(channel, 200);
     }
     return true;
 }
 
-// 客户端断开时删除对应的请求状态。
+void HttpHandler::cleanup(RequestState& state)
+{
+    if (state.file_fd >= 0) close(state.file_fd);
+    state.file_fd = -1;
+    if (state.directory_fd >= 0) {
+        if (!state.temporary.empty()) unlinkat(state.directory_fd, state.temporary.c_str(), 0);
+        close(state.directory_fd);
+    }
+    state.directory_fd = -1;
+    state.temporary.clear();
+}
+
+bool HttpHandler::startUpload(TcpChannel& channel, RequestState& state)
+{
+    state.directory_fd = open(HTTP_FILES_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (state.directory_fd < 0) return respond(channel, 500);
+    static unsigned long nextId = 0;
+    for (int attempts = 0; attempts < 100; ++attempts) {
+        std::string name = ".upload-" + std::to_string(getpid()) + "-" + std::to_string(nextId++);
+        if (name == state.filename) continue;
+        int fd = openat(state.directory_fd, name.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+        if (fd >= 0) { state.file_fd = fd; state.temporary = name; return true; }
+        if (errno != EEXIST) break;
+    }
+    cleanup(state);
+    return respond(channel, 500);
+}
+
+bool HttpHandler::writeUpload(TcpChannel& channel, RequestState& state, const char* data, std::size_t size)
+{
+    std::size_t written = 0;
+    while (written < size) {
+        ssize_t n = write(state.file_fd, data + written, size - written);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) { cleanup(state); return respond(channel, 500); }
+        written += static_cast<std::size_t>(n);
+    }
+    return true;
+}
+
+bool HttpHandler::finishUpload(TcpChannel& channel, RequestState& state)
+{
+    int status = 201;
+    if (close(state.file_fd) < 0) status = 500;
+    state.file_fd = -1;
+    if (status == 201 && linkat(state.directory_fd, state.temporary.c_str(), state.directory_fd, state.filename.c_str(), 0) < 0)
+        status = errno == EEXIST ? 409 : 500;
+    cleanup(state);
+    return respond(channel, status);
+}
+
+bool HttpHandler::startDownload(TcpChannel& channel, RequestState& state, const std::string& path)
+{
+    std::string filename;
+    if (!decodeFilename(path, filename)) return respond(channel, 400);
+    int directory = open(HTTP_FILES_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (directory < 0) return respond(channel, 500);
+    int fd = openat(directory, filename.c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
+    int error = errno;
+    close(directory);
+    if (fd < 0) return respond(channel, error == ENOENT || error == ELOOP ? 404 : 500);
+    struct stat info{};
+    if (fstat(fd, &info) < 0) { close(fd); return respond(channel, 500); }
+    if (!S_ISREG(info.st_mode) || info.st_size < 0) { close(fd); return respond(channel, 404); }
+    if (static_cast<unsigned long long>(info.st_size) > std::numeric_limits<std::size_t>::max()) {
+        close(fd);
+        return respond(channel, 500);
+    }
+    state.file_fd = fd;
+    state.download_remaining = static_cast<std::size_t>(info.st_size);
+    std::string header = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: " +
+        std::to_string(state.download_remaining) + "\r\nConnection: close\r\n\r\n";
+    if (!channel.queueSend(header.data(), header.size())) return false;
+    return true;
+}
+
+bool HttpHandler::onWritable(TcpChannel& channel)
+{
+    RequestState& state = requests_.at(channel.getFd());
+    if (state.file_fd < 0 || state.request.method != "GET") return true;
+    if (state.download_remaining == 0) {
+        cleanup(state);
+        channel.closeAfterSend();
+        return true;
+    }
+    char buffer[64 * 1024];
+    std::size_t amount = state.download_remaining < sizeof(buffer) ? state.download_remaining : sizeof(buffer);
+    ssize_t n;
+    do { n = read(state.file_fd, buffer, amount); } while (n < 0 && errno == EINTR);
+    if (n <= 0) return false;
+    state.download_remaining -= static_cast<std::size_t>(n);
+    return channel.queueSend(buffer, static_cast<std::size_t>(n));
+}
+
 void HttpHandler::onDisconnected(TcpChannel& channel)
 {
-    requests_.erase(channel.getFd());
+    auto it = requests_.find(channel.getFd());
+    if (it != requests_.end()) { cleanup(it->second); requests_.erase(it); }
 }
