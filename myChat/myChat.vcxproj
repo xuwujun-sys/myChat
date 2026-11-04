@@ -80,6 +80,7 @@
     <ClCompile Include="handlers\EchoHandler.cpp" />
     <ClCompile Include="handlers\HttpHandler.cpp" />
     <ClCompile Include="handlers\HttpResponse.cpp" />
+    <ClCompile Include="protocol\HttpProtocol.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="core\Kernel.cpp" />
     <ClCompile Include="core\ListenChannel.cpp" />
@@ -93,6 +94,8 @@
     <ClInclude Include="handlers\HttpHandler.h" />
     <ClInclude Include="handlers\HttpRequest.h" />
     <ClInclude Include="handlers\HttpResponse.h" />
+    <ClInclude Include="protocol\Protocol.h" />
+    <ClInclude Include="protocol\HttpProtocol.h" />
     <ClInclude Include="config\config.h" />
     <ClInclude Include="core\Kernel.h" />
     <ClInclude Include="core\ListenChannel.h" />
