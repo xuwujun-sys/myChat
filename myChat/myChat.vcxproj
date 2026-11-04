@@ -78,6 +78,7 @@
     <ClCompile Include="core\Buffer.cpp" />
     <ClCompile Include="core\Channel.cpp" />
     <ClCompile Include="handlers\EchoHandler.cpp" />
+    <ClCompile Include="handlers\FileService.cpp" />
     <ClCompile Include="handlers\HttpHandler.cpp" />
     <ClCompile Include="handlers\HttpResponse.cpp" />
     <ClCompile Include="protocol\HttpProtocol.cpp" />
@@ -89,7 +90,9 @@
   <ItemGroup>
     <ClInclude Include="core\Buffer.h" />
     <ClInclude Include="core\Channel.h" />
+    <ClInclude Include="core\UniqueFd.h" />
     <ClInclude Include="handlers\EchoHandler.h" />
+    <ClInclude Include="handlers\FileService.h" />
     <ClInclude Include="handlers\Handler.h" />
     <ClInclude Include="handlers\HttpHandler.h" />
     <ClInclude Include="handlers\HttpRequest.h" />
