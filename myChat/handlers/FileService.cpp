@@ -29,7 +29,9 @@ bool FileService::decodeFilename(const std::string& path, std::string& filename)
         if (c < 32 || c == 127 || c == '/' || c == '\\') return false;
         filename.push_back(static_cast<char>(c));
     }
-    return !filename.empty() && filename != "." && filename != "..";
+    // 防止客户端下载正在写入的临时文件。
+    return !filename.empty() && filename != "." && filename != ".." &&
+        filename.compare(0, 8, ".upload-") != 0;
 }
 
 // 打开共享目录中的文件，返回文件大小。
@@ -68,35 +70,50 @@ bool FileService::readFile(const UniqueFd& file, std::size_t size, std::string& 
     return true;
 }
 
-// 将完整请求体写入临时文件，再创建目标文件；不覆盖已有文件。
-int FileService::saveFile(const std::string& filename, const std::string& body)
+UploadFile::~UploadFile()
 {
-    UniqueFd directory(open(HTTP_FILES_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC));
-    if (directory.get() < 0) return 500;
-    static unsigned long nextId = 0;
-    std::string temporary;
-    UniqueFd file;
-    for (int attempts = 0; attempts < 100; ++attempts) {
-        temporary = ".upload-" + std::to_string(getpid()) + "-" + std::to_string(nextId++);
-        if (temporary == filename) continue;
-        file = UniqueFd(openat(directory.get(), temporary.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600));
-        if (file.get() >= 0 || errno != EEXIST) break;
+    file_.close();
+    if (directory_.get() >= 0 && !temporary_.empty()) {
+        unlinkat(directory_.get(), temporary_.c_str(), 0);
     }
-    if (file.get() < 0) return 500;
+}
+
+// 创建临时文件，filename 必须先通过 decodeFilename 校验。
+int UploadFile::open(const std::string& filename)
+{
+    filename_ = filename;
+    directory_ = UniqueFd(::open(HTTP_FILES_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC));
+    if (directory_.get() < 0) return 500;
+    static unsigned long nextId = 0;
+    for (int attempts = 0; attempts < 100; ++attempts) {
+        std::string name = ".upload-" + std::to_string(getpid()) + "-" + std::to_string(nextId++);
+        if (name == filename_) continue;
+        file_ = UniqueFd(openat(directory_.get(), name.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600));
+        if (file_.get() >= 0) { temporary_ = name; return 200; }
+        if (errno != EEXIST) break;
+    }
+    return 500;
+}
+
+// 将接收到的一段数据完整写入临时文件。
+bool UploadFile::write(const char* data, std::size_t size)
+{
     std::size_t written = 0;
-    while (written < body.size()) {
-        ssize_t count = write(file.get(), body.data() + written, body.size() - written);
+    while (written < size) {
+        ssize_t count = ::write(file_.get(), data + written, size - written);
         if (count < 0 && errno == EINTR) continue;
-        if (count <= 0) break;
+        if (count <= 0) return false;
         written += static_cast<std::size_t>(count);
     }
-    bool ok = written == body.size();
-    if (file.close() < 0) ok = false;
-    int status = 201;
-    if (!ok) status = 500;
-    else if (linkat(directory.get(), temporary.c_str(), directory.get(), filename.c_str(), 0) < 0) {
-        status = errno == EEXIST ? 409 : 500;
-    }
-    unlinkat(directory.get(), temporary.c_str(), 0);
-    return status;
+    return true;
+}
+
+// 全部收到后创建目标文件；同名文件不会被覆盖。
+int UploadFile::finish()
+{
+    if (file_.close() < 0) return 500;
+    if (linkat(directory_.get(), temporary_.c_str(), directory_.get(), filename_.c_str(), 0) < 0)
+        return errno == EEXIST ? 409 : 500;
+    if (unlinkat(directory_.get(), temporary_.c_str(), 0) == 0) temporary_.clear();
+    return 201;
 }

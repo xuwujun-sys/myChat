@@ -2,10 +2,12 @@
 #include "Handler.h"
 #include "HttpRequest.h"
 #include "../core/UniqueFd.h"
+#include "FileService.h"
+#include <memory>
 #include <string>
 #include <unordered_map>
 
-// 每个连接接收一个 HTTP 请求，支持小文件上传和下载。
+// 每个连接接收一个 HTTP 请求。
 class HttpHandler : public Handler {
 public:
     void onConnected(TcpChannel& channel) override;
@@ -16,8 +18,8 @@ public:
 private:
     struct RequestState {
         std::string header;
-        std::string body; // 小文件上传时保存请求体。
         std::string filename;
+        std::unique_ptr<UploadFile> upload;
         UniqueFd download_file;
         std::size_t download_remaining = 0;
         HttpRequest request;

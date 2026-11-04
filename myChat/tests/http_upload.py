@@ -31,7 +31,7 @@ def request(name, body):
 
 
 try:
-    body = bytes(range(256)) * 32
+    body = bytes(range(256)) * 8192  # 2 MiB
     check(request(files[0].name, body), b"201")
     assert files[0].read_bytes() == body
     check(request(files[0].name, b"overwrite"), b"409")
@@ -40,13 +40,25 @@ try:
     assert files[1].read_bytes() == b""
     check(b"PUT /files/%2e%2e%2fx HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n", b"400")
     check(b"PUT /files/x HTTP/1.1\r\nHost: localhost\r\nContent-Length: -1\r\n\r\n", b"400")
-    check(b"PUT /files/x HTTP/1.1\r\nHost: localhost\r\nContent-Length: 1048577\r\n\r\n", b"413")
+    check(b"PUT /files/x HTTP/1.1\r\nHost: localhost\r\nContent-Length: 536870913\r\n\r\n", b"413")
     check(b"PUT /files/x HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n", b"501")
     check(b"PUT /files/x HTTP/1.1\r\nHost: localhost\r\nContent-Encoding: gzip\r\nContent-Length: 0\r\n\r\n", b"501")
+    before = set(directory.glob(".upload-*"))
     with socket.create_connection(("127.0.0.1", 8888), timeout=3) as sock:
         sock.sendall(("PUT /files/" + files[2].name + " HTTP/1.1\r\nHost: localhost\r\nContent-Length: 20\r\n\r\npartial").encode())
-    time.sleep(0.1)
+        for _ in range(20):
+            pending = set(directory.glob(".upload-*")) - before
+            if pending:
+                break
+            time.sleep(0.05)
+        assert pending, "上传中没有创建临时文件"
+        check(("GET /files/" + next(iter(pending)).name + " HTTP/1.1\r\nHost: localhost\r\n\r\n").encode(), b"400")
+    for _ in range(20):
+        if not (set(directory.glob(".upload-*")) - before):
+            break
+        time.sleep(0.05)
     assert not files[2].exists()
+    assert not (set(directory.glob(".upload-*")) - before), "上传中断后临时文件未清理"
     print("HTTP upload checks passed")
 finally:
     for file in files:

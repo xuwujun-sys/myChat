@@ -46,20 +46,33 @@ bool HttpHandler::onData(TcpChannel& channel, const char* data, std::size_t size
         if (state.request.method == "PUT" && state.request.path.compare(0, prefix.size(), prefix) == 0) {
             if (!FileService::decodeFilename(state.request.path.substr(prefix.size()), state.filename)) return respond(channel, 400);
             if (state.request.content_length > MAX_UPLOAD_BYTES) return respond(channel, 413);
+            state.upload.reset(new UploadFile());
+            int uploadStatus = state.upload->open(state.filename);
+            if (uploadStatus != 200) { state.upload.reset(); return respond(channel, uploadStatus); }
         }
         state.header_complete = true;
         state.body_received = state.header.size() - headerSize;
-        if (state.body_received > state.request.content_length) return respond(channel, 400);
-        if (!state.filename.empty()) state.body.append(state.header.data() + headerSize, state.body_received);
+        if (state.body_received > state.request.content_length) { state.upload.reset(); return respond(channel, 400); }
+        if (state.upload && !state.upload->write(state.header.data() + headerSize, state.body_received)) {
+            state.upload.reset();
+            return respond(channel, 500);
+        }
         state.header.clear();
     } else {
-        if (size > state.request.content_length - state.body_received) return respond(channel, 400);
-        if (!state.filename.empty()) state.body.append(data, size);
+        if (size > state.request.content_length - state.body_received) { state.upload.reset(); return respond(channel, 400); }
+        if (state.upload && !state.upload->write(data, size)) {
+            state.upload.reset();
+            return respond(channel, 500);
+        }
         state.body_received += size;
     }
     if (state.body_received > state.request.content_length) return respond(channel, 400);
     if (state.body_received == state.request.content_length) {
-        if (!state.filename.empty()) return respond(channel, FileService::saveFile(state.filename, state.body));
+        if (state.upload) {
+            int uploadStatus = state.upload->finish();
+            state.upload.reset();
+            return respond(channel, uploadStatus);
+        }
         const std::string prefix = "/files/";
         if (state.request.method == "GET" && state.request.path.compare(0, prefix.size(), prefix) == 0) {
             return startDownload(channel, state, state.request.path.substr(prefix.size()));
