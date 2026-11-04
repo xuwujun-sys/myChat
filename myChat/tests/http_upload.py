@@ -31,7 +31,7 @@ def request(name, body):
 
 
 try:
-    body = bytes(range(256)) * 32
+    body = bytes(range(256)) * 8192
     check(request(files[0].name, body), b"201")
     assert files[0].read_bytes() == body
     check(request(files[0].name, b"overwrite"), b"409")
@@ -40,7 +40,7 @@ try:
     assert files[1].read_bytes() == b""
     check(b"PUT /files/%2e%2e%2fx HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n", b"400")
     check(b"PUT /files/x HTTP/1.1\r\nHost: localhost\r\nContent-Length: -1\r\n\r\n", b"400")
-    check(b"PUT /files/x HTTP/1.1\r\nHost: localhost\r\nContent-Length: 1048577\r\n\r\n", b"413")
+    check(b"PUT /files/x HTTP/1.1\r\nHost: localhost\r\nContent-Length: 536870913\r\n\r\n", b"413")
     check(b"PUT /files/x HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n", b"501")
     check(b"PUT /files/x HTTP/1.1\r\nHost: localhost\r\nContent-Encoding: gzip\r\nContent-Length: 0\r\n\r\n", b"501")
     with socket.create_connection(("127.0.0.1", 8888), timeout=3) as sock:

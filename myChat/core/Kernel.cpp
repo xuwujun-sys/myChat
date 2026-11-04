@@ -77,6 +77,9 @@ void Kernel::handleClientEvent(int fd, std::uint32_t flags)
     if (ok && channel.hasPendingData()) {
         ok = channel.sendData();
     }
+    if (ok && !channel.hasPendingData() && !channel.shouldCloseAfterSend()) {
+        ok = handler_.onSendComplete(channel);
+    }
     // 根据当前收发状态更新关注的事件。
     if (ok && !((channel.isReadClosed() || channel.shouldCloseAfterSend()) && !channel.hasPendingData())) {
         ok = updateEvents(fd, channel);

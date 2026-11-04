@@ -35,20 +35,21 @@ try:
     largest = limit - len(header)
     paths[5].write_bytes(b"x" * largest)
     paths[6].write_bytes(b"x" * (largest + 1))
-    for path, expected in ((paths[0], b""), (paths[1], contents), (paths[4], b"unicode filename")):
+    for path, expected in ((paths[0], b""), (paths[1], contents), (paths[2], b"x" * (1024 * 1024)), (paths[4], b"unicode filename")):
         header, body = get("/files/" + quote(path.name))
         assert header.startswith(b"HTTP/1.1 200 "), header
         assert (b"Content-Length: " + str(len(expected)).encode()) in header, header
         assert body == expected
     for target, status in (("/files/" + prefix + "_missing", b"404"),
                            ("/files/" + paths[3].name, b"404"),
-                           ("/files/" + paths[2].name, b"413"),
-                           ("/files/" + paths[6].name, b"413"),
+                           ("/files/.upload-test", b"400"),
                            ("/files/%2e%2e%2fetc%2fpasswd", b"400")):
         header, _ = get(target)
         assert header.startswith(b"HTTP/1.1 " + status + b" "), header
     header, body = get("/files/" + paths[5].name)
     assert header.startswith(b"HTTP/1.1 200 ") and len(body) == largest
+    header, body = get("/files/" + paths[6].name)
+    assert header.startswith(b"HTTP/1.1 200 ") and len(body) == largest + 1
     print("HTTP download checks passed")
 finally:
     for path in paths:

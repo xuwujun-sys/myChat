@@ -17,24 +17,6 @@ bool respond(TcpChannel& channel, int status)
     return true;
 }
 
-// 读取小文件并生成下载响应。
-bool sendFile(TcpChannel& channel, const std::string& path)
-{
-    UniqueFd file;
-    std::size_t size = 0;
-    int status = FileService::openFile(path, file, size);
-    if (status != 200) return respond(channel, status);
-    HttpResponse response(200, "application/octet-stream", size);
-    std::string message = response.buildHeader();
-    if (size > MAX_PENDING_BYTES - message.size()) return respond(channel, 413);
-    std::string body;
-    if (!FileService::readFile(file, size, body)) return respond(channel, 500);
-    file.close();
-    message += body;
-    if (!channel.queueSend(message.data(), message.size())) return false;
-    channel.closeAfterSend();
-    return true;
-}
 }
 
 // 客户端连接时创建独立的请求状态。
@@ -64,27 +46,67 @@ bool HttpHandler::onData(TcpChannel& channel, const char* data, std::size_t size
         if (state.request.method == "PUT" && state.request.path.compare(0, prefix.size(), prefix) == 0) {
             if (!FileService::decodeFilename(state.request.path.substr(prefix.size()), state.filename)) return respond(channel, 400);
             if (state.request.content_length > MAX_UPLOAD_BYTES) return respond(channel, 413);
+            state.upload.reset(new UploadFile());
+            int uploadStatus = state.upload->open(state.filename);
+            if (uploadStatus != 200) { state.upload.reset(); return respond(channel, uploadStatus); }
         }
         state.header_complete = true;
         state.body_received = state.header.size() - headerSize;
         if (state.body_received > state.request.content_length) return respond(channel, 400);
-        if (!state.filename.empty()) state.body.append(state.header.data() + headerSize, state.body_received);
+        if (state.upload && !state.upload->write(state.header.data() + headerSize, state.body_received)) {
+            state.upload.reset();
+            return respond(channel, 500);
+        }
         state.header.clear();
     } else {
         if (size > state.request.content_length - state.body_received) return respond(channel, 400);
-        if (!state.filename.empty()) state.body.append(data, size);
+        if (state.upload && !state.upload->write(data, size)) {
+            state.upload.reset();
+            return respond(channel, 500);
+        }
         state.body_received += size;
     }
     if (state.body_received > state.request.content_length) return respond(channel, 400);
     if (state.body_received == state.request.content_length) {
-        if (!state.filename.empty()) return respond(channel, FileService::saveFile(state.filename, state.body));
+        if (state.upload) {
+            int uploadStatus = state.upload->finish();
+            state.upload.reset();
+            return respond(channel, uploadStatus);
+        }
         const std::string prefix = "/files/";
         if (state.request.method == "GET" && state.request.path.compare(0, prefix.size(), prefix) == 0) {
-            return sendFile(channel, state.request.path.substr(prefix.size()));
+            return startDownload(channel, state, state.request.path.substr(prefix.size()));
         }
         return respond(channel, 200);
     }
     return true;
+}
+
+// 开始下载，先发送响应头，文件内容在缓冲区清空后分块发送。
+bool HttpHandler::startDownload(TcpChannel& channel, RequestState& state, const std::string& path)
+{
+    int status = FileService::openFile(path, state.download, state.download_remaining);
+    if (status != 200) return respond(channel, status);
+    HttpResponse response(200, "application/octet-stream", state.download_remaining);
+    std::string header = response.buildHeader();
+    return channel.queueSend(header.data(), header.size());
+}
+
+bool HttpHandler::onSendComplete(TcpChannel& channel)
+{
+    RequestState& state = requests_.at(channel.getFd());
+    if (state.download.get() < 0) return true;
+    if (state.download_remaining == 0) {
+        state.download.close();
+        channel.closeAfterSend();
+        return true;
+    }
+    char buffer[64 * 1024];
+    std::size_t size = state.download_remaining < sizeof(buffer) ? state.download_remaining : sizeof(buffer);
+    ssize_t count = FileService::readFile(state.download, buffer, size);
+    if (count <= 0) return false;
+    state.download_remaining -= static_cast<std::size_t>(count);
+    return channel.queueSend(buffer, static_cast<std::size_t>(count));
 }
 
 // 客户端断开时删除对应的请求状态。
