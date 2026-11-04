@@ -116,7 +116,7 @@ int Kernel::run()
     std::cout << "Server listening on port " << port << std::endl;
     for (;;) {
         //如果监听到文件描述符注册的事件了就返回，一次最多返回64个
-        int count = epoll_wait(epoll_fd_, events, 64, -1);
+        int count = epoll_wait(epoll_fd_, events, 64, 1000);
         if (count < 0) {
             if (errno == EINTR) continue;
             std::perror("epoll_wait");
@@ -129,6 +129,13 @@ int Kernel::run()
             } else {
                 handleClientEvent(fd, events[i].events);
             }
+        }
+        auto now = std::chrono::steady_clock::now();
+        for (auto it = clients_.begin(); it != clients_.end();) {
+            int fd = it->first;
+            bool idle = it->second->isIdle(now);
+            ++it;
+            if (idle) closeClient(fd);
         }
     }
     while (!clients_.empty()) closeClient(clients_.begin()->first);
