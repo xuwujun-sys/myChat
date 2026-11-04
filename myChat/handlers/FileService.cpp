@@ -3,6 +3,7 @@
 #include "../config/config.h"
 #include <cerrno>
 #include <fcntl.h>
+#include <limits>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -31,7 +32,7 @@ bool FileService::decodeFilename(const std::string& path, std::string& filename)
     return !filename.empty() && filename != "." && filename != "..";
 }
 
-// 打开共享目录中的小文件，返回文件大小。
+// 打开共享目录中的文件，返回文件大小。
 int FileService::openFile(const std::string& path, UniqueFd& file, std::size_t& size)
 {
     std::string filename;
@@ -46,7 +47,7 @@ int FileService::openFile(const std::string& path, UniqueFd& file, std::size_t& 
     struct stat info{};
     if (fstat(file.get(), &info) < 0) return 500;
     if (!S_ISREG(info.st_mode)) return 404;
-    if (info.st_size < 0 || static_cast<unsigned long long>(info.st_size) > MAX_PENDING_BYTES) return 413;
+    if (info.st_size < 0 || static_cast<unsigned long long>(info.st_size) > std::numeric_limits<std::size_t>::max()) return 500;
     size = static_cast<std::size_t>(info.st_size);
     return 200;
 }

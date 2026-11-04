@@ -17,24 +17,6 @@ bool respond(TcpChannel& channel, int status)
     return true;
 }
 
-// 读取小文件并生成下载响应。
-bool sendFile(TcpChannel& channel, const std::string& path)
-{
-    UniqueFd file;
-    std::size_t size = 0;
-    int status = FileService::openFile(path, file, size);
-    if (status != 200) return respond(channel, status);
-    HttpResponse response(200, "application/octet-stream", size);
-    std::string message = response.buildHeader();
-    if (size > MAX_PENDING_BYTES - message.size()) return respond(channel, 413);
-    std::string body;
-    if (!FileService::readFile(file, size, body)) return respond(channel, 500);
-    file.close();
-    message += body;
-    if (!channel.queueSend(message.data(), message.size())) return false;
-    channel.closeAfterSend();
-    return true;
-}
 }
 
 // 客户端连接时创建独立的请求状态。
@@ -80,11 +62,39 @@ bool HttpHandler::onData(TcpChannel& channel, const char* data, std::size_t size
         if (!state.filename.empty()) return respond(channel, FileService::saveFile(state.filename, state.body));
         const std::string prefix = "/files/";
         if (state.request.method == "GET" && state.request.path.compare(0, prefix.size(), prefix) == 0) {
-            return sendFile(channel, state.request.path.substr(prefix.size()));
+            return startDownload(channel, state, state.request.path.substr(prefix.size()));
         }
         return respond(channel, 200);
     }
     return true;
+}
+
+// 先发送响应头，文件内容在发送缓冲清空后继续发送。
+bool HttpHandler::startDownload(TcpChannel& channel, RequestState& state, const std::string& path)
+{
+    int status = FileService::openFile(path, state.download_file, state.download_remaining);
+    if (status != 200) return respond(channel, status);
+    HttpResponse response(200, "application/octet-stream", state.download_remaining);
+    std::string header = response.buildHeader();
+    return channel.queueSend(header.data(), header.size());
+}
+
+// 每次发送一块，最后一块发送完毕后关闭连接。
+bool HttpHandler::onSendComplete(TcpChannel& channel)
+{
+    RequestState& state = requests_.at(channel.getFd());
+    if (state.download_file.get() < 0) return true;
+    if (state.download_remaining == 0) {
+        state.download_file.close();
+        channel.closeAfterSend();
+        return true;
+    }
+    const std::size_t chunkSize = 64 * 1024;
+    std::size_t size = state.download_remaining < chunkSize ? state.download_remaining : chunkSize;
+    std::string chunk;
+    if (!FileService::readFile(state.download_file, size, chunk)) return false;
+    state.download_remaining -= size;
+    return channel.queueSend(chunk.data(), chunk.size());
 }
 
 // 客户端断开时删除对应的请求状态。
