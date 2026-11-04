@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="core">
+      <UniqueIdentifier>{7CC69D16-7E26-4E68-A834-4D254B225602}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="handlers">
+      <UniqueIdentifier>{CC57C788-FD2F-4D5A-A1C1-CB84993391D9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="protocol">
+      <UniqueIdentifier>{28A9A75F-2F95-423B-81F2-DA0F920E7A27}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="config">
+      <UniqueIdentifier>{730AE7A0-C5E2-487E-B063-96D2351A4D39}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="core\Buffer.cpp"><Filter>core</Filter></ClCompile>
+    <ClCompile Include="core\Channel.cpp"><Filter>core</Filter></ClCompile>
+    <ClCompile Include="core\Kernel.cpp"><Filter>core</Filter></ClCompile>
+    <ClCompile Include="core\ListenChannel.cpp"><Filter>core</Filter></ClCompile>
+    <ClCompile Include="core\TcpChannel.cpp"><Filter>core</Filter></ClCompile>
+    <ClCompile Include="handlers\EchoHandler.cpp"><Filter>handlers</Filter></ClCompile>
+    <ClCompile Include="handlers\FileService.cpp"><Filter>handlers</Filter></ClCompile>
+    <ClCompile Include="handlers\HttpHandler.cpp"><Filter>handlers</Filter></ClCompile>
+    <ClCompile Include="handlers\HttpResponse.cpp"><Filter>handlers</Filter></ClCompile>
+    <ClCompile Include="protocol\HttpProtocol.cpp"><Filter>protocol</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="core\Buffer.h"><Filter>core</Filter></ClInclude>
+    <ClInclude Include="core\Channel.h"><Filter>core</Filter></ClInclude>
+    <ClInclude Include="core\Kernel.h"><Filter>core</Filter></ClInclude>
+    <ClInclude Include="core\ListenChannel.h"><Filter>core</Filter></ClInclude>
+    <ClInclude Include="core\TcpChannel.h"><Filter>core</Filter></ClInclude>
+    <ClInclude Include="core\UniqueFd.h"><Filter>core</Filter></ClInclude>
+    <ClInclude Include="handlers\EchoHandler.h"><Filter>handlers</Filter></ClInclude>
+    <ClInclude Include="handlers\FileService.h"><Filter>handlers</Filter></ClInclude>
+    <ClInclude Include="handlers\Handler.h"><Filter>handlers</Filter></ClInclude>
+    <ClInclude Include="handlers\HttpHandler.h"><Filter>handlers</Filter></ClInclude>
+    <ClInclude Include="handlers\HttpRequest.h"><Filter>handlers</Filter></ClInclude>
+    <ClInclude Include="handlers\HttpResponse.h"><Filter>handlers</Filter></ClInclude>
+    <ClInclude Include="protocol\HttpProtocol.h"><Filter>protocol</Filter></ClInclude>
+    <ClInclude Include="protocol\Protocol.h"><Filter>protocol</Filter></ClInclude>
+    <ClInclude Include="config\config.h"><Filter>config</Filter></ClInclude>
+  </ItemGroup>
+</Project>
