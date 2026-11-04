@@ -20,12 +20,16 @@ bool respond(TcpChannel& channel, int status)
 // 读取小文件并生成下载响应。
 bool sendFile(TcpChannel& channel, const std::string& path)
 {
-    std::string body;
-    int status = FileService::readFile(path, body);
+    UniqueFd file;
+    std::size_t size = 0;
+    int status = FileService::openFile(path, file, size);
     if (status != 200) return respond(channel, status);
-    HttpResponse response(200, "application/octet-stream", body.size());
+    HttpResponse response(200, "application/octet-stream", size);
     std::string message = response.buildHeader();
-    if (body.size() > MAX_PENDING_BYTES - message.size()) return respond(channel, 413);
+    if (size > MAX_PENDING_BYTES - message.size()) return respond(channel, 413);
+    std::string body;
+    if (!FileService::readFile(file, size, body)) return respond(channel, 500);
+    file.close();
     message += body;
     if (!channel.queueSend(message.data(), message.size())) return false;
     channel.closeAfterSend();
