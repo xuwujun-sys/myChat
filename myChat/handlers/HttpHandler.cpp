@@ -1,4 +1,5 @@
 #include "HttpHandler.h"
+#include "HttpResponse.h"
 #include "../core/TcpChannel.h"
 #include "../config/config.h"
 #include <cctype>
@@ -90,20 +91,8 @@ int parseHeader(const std::string& header, HttpRequest& request)
 // 按状态码生成响应，发送完成后关闭连接。
 bool respond(TcpChannel& channel, int status)
 {
-    const char* response;
-    switch (status) {
-    case 201: response = "HTTP/1.1 201 Created\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
-    case 400: response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
-    case 404: response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
-    case 409: response = "HTTP/1.1 409 Conflict\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
-    case 411: response = "HTTP/1.1 411 Length Required\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
-    case 413: response = "HTTP/1.1 413 Content Too Large\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
-    case 431: response = "HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
-    case 500: response = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
-    case 501: response = "HTTP/1.1 501 Not Implemented\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; break;
-    default: response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: 13\r\nConnection: close\r\n\r\nHello, HTTP!\n"; break;
-    }
-    std::string message(response);
+    HttpResponse response(status);
+    std::string message = response.buildMessage();
     if (!channel.queueSend(message.data(), message.size())) return false;
     channel.closeAfterSend();
     return true;

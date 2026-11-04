@@ -1,14 +1,8 @@
 #pragma once
 #include "Handler.h"
+#include "HttpRequest.h"
 #include <string>
 #include <unordered_map>
-
-struct HttpRequest {
-    std::string method;
-    std::string path;
-    std::string host;
-    std::size_t content_length = 0;
-};
 
 // 每个连接接收一个 HTTP 请求，支持小文件上传和下载。
 class HttpHandler : public Handler {
