@@ -1,6 +1,6 @@
 #include "FileService.h"
-#include "../core/UniqueFd.h"
-#include "../config/config.h"
+#include "../../network/UniqueFd.h"
+#include "../../config/config.h"
 #include <cerrno>
 #include <fcntl.h>
 #include <limits>

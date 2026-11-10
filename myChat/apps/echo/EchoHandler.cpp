@@ -1,5 +1,5 @@
 #include "EchoHandler.h"
-#include "../core/TcpChannel.h"
+#include "../../network/TcpChannel.h"
 
 void EchoHandler::onConnected(TcpChannel&) {}
 

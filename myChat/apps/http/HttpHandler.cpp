@@ -1,9 +1,9 @@
 #include "HttpHandler.h"
 #include "HttpResponse.h"
 #include "FileService.h"
-#include "../protocol/HttpProtocol.h"
-#include "../core/TcpChannel.h"
-#include "../config/config.h"
+#include "HttpProtocol.h"
+#include "../../network/TcpChannel.h"
+#include "../../config/config.h"
 
 namespace {
 

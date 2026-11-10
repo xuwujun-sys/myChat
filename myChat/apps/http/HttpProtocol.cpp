@@ -1,5 +1,5 @@
 #include "HttpProtocol.h"
-#include "../handlers/HttpRequest.h"
+#include "HttpRequest.h"
 #include <cctype>
 #include <limits>
 

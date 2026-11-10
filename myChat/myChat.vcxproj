@@ -75,34 +75,34 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
-    <ClCompile Include="core\Buffer.cpp" />
-    <ClCompile Include="core\Channel.cpp" />
-    <ClCompile Include="handlers\EchoHandler.cpp" />
-    <ClCompile Include="handlers\FileService.cpp" />
-    <ClCompile Include="handlers\HttpHandler.cpp" />
-    <ClCompile Include="handlers\HttpResponse.cpp" />
-    <ClCompile Include="protocol\HttpProtocol.cpp" />
+    <ClCompile Include="network\Buffer.cpp" />
+    <ClCompile Include="network\Channel.cpp" />
+    <ClCompile Include="apps\echo\EchoHandler.cpp" />
+    <ClCompile Include="apps\http\FileService.cpp" />
+    <ClCompile Include="apps\http\HttpHandler.cpp" />
+    <ClCompile Include="apps\http\HttpResponse.cpp" />
+    <ClCompile Include="apps\http\HttpProtocol.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="core\Kernel.cpp" />
-    <ClCompile Include="core\ListenChannel.cpp" />
-    <ClCompile Include="core\TcpChannel.cpp" />
+    <ClCompile Include="network\Kernel.cpp" />
+    <ClCompile Include="network\ListenChannel.cpp" />
+    <ClCompile Include="network\TcpChannel.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="core\Buffer.h" />
-    <ClInclude Include="core\Channel.h" />
-    <ClInclude Include="core\UniqueFd.h" />
-    <ClInclude Include="handlers\EchoHandler.h" />
-    <ClInclude Include="handlers\FileService.h" />
-    <ClInclude Include="handlers\Handler.h" />
-    <ClInclude Include="handlers\HttpHandler.h" />
-    <ClInclude Include="handlers\HttpRequest.h" />
-    <ClInclude Include="handlers\HttpResponse.h" />
-    <ClInclude Include="protocol\Protocol.h" />
-    <ClInclude Include="protocol\HttpProtocol.h" />
+    <ClInclude Include="network\Buffer.h" />
+    <ClInclude Include="network\Channel.h" />
+    <ClInclude Include="network\UniqueFd.h" />
+    <ClInclude Include="apps\echo\EchoHandler.h" />
+    <ClInclude Include="apps\http\FileService.h" />
+    <ClInclude Include="network\Handler.h" />
+    <ClInclude Include="apps\http\HttpHandler.h" />
+    <ClInclude Include="apps\http\HttpRequest.h" />
+    <ClInclude Include="apps\http\HttpResponse.h" />
+    <ClInclude Include="apps\http\Protocol.h" />
+    <ClInclude Include="apps\http\HttpProtocol.h" />
     <ClInclude Include="config\config.h" />
-    <ClInclude Include="core\Kernel.h" />
-    <ClInclude Include="core\ListenChannel.h" />
-    <ClInclude Include="core\TcpChannel.h" />
+    <ClInclude Include="network\Kernel.h" />
+    <ClInclude Include="network\ListenChannel.h" />
+    <ClInclude Include="network\TcpChannel.h" />
   </ItemGroup>
   <ItemDefinitionGroup />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
