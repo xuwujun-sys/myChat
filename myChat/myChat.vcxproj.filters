@@ -10,6 +10,9 @@
     <Filter Include="apps\echo">
       <UniqueIdentifier>{CC57C788-FD2F-4D5A-A1C1-CB84993391D9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="apps\chat">
+      <UniqueIdentifier>{F262FF8C-3971-49C3-9C94-5FE7BC86EBE2}</UniqueIdentifier>
+    </Filter>
     <Filter Include="apps\http">
       <UniqueIdentifier>{28A9A75F-2F95-423B-81F2-DA0F920E7A27}</UniqueIdentifier>
     </Filter>
@@ -18,6 +21,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="apps\chat\ChatProtocol.cpp"><Filter>apps\chat</Filter></ClCompile>
     <ClCompile Include="network\Buffer.cpp"><Filter>network</Filter></ClCompile>
     <ClCompile Include="network\Channel.cpp"><Filter>network</Filter></ClCompile>
     <ClCompile Include="network\Kernel.cpp"><Filter>network</Filter></ClCompile>
@@ -30,6 +34,7 @@
     <ClCompile Include="apps\http\HttpProtocol.cpp"><Filter>apps\http</Filter></ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="apps\chat\ChatProtocol.h"><Filter>apps\chat</Filter></ClInclude>
     <ClInclude Include="network\Buffer.h"><Filter>network</Filter></ClInclude>
     <ClInclude Include="network\Channel.h"><Filter>network</Filter></ClInclude>
     <ClInclude Include="network\Kernel.h"><Filter>network</Filter></ClInclude>
