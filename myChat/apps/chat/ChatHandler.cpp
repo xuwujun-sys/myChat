@@ -7,6 +7,12 @@ bool reply(TcpChannel& channel, const std::string& message)
 {
     return channel.queueSend(message.data(), message.size());
 }
+
+// 统一错误响应格式，返回发送数据入队的结果。
+bool sendError(TcpChannel& channel, const std::string& code)
+{
+    return reply(channel, "ERROR " + code + "\n");
+}
 }
 
 void ChatHandler::onConnected(TcpChannel& channel)
@@ -19,19 +25,19 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
     ClientState& client = clients_.at(channel.getFd());
     std::vector<std::string> lines;
     if (!client.protocol.append(data, size, lines)) {
-        bool ok = reply(channel, "ERROR MESSAGE_TOO_LONG\n");
+        bool ok = sendError(channel, "MESSAGE_TOO_LONG");
         channel.closeAfterSend();
         return ok;
     }
     for (const std::string& line : lines) {
         std::string command, value;
         if (!ChatProtocol::parseCommand(line, command, value)) {
-            if (!reply(channel, "ERROR INVALID_COMMAND\n")) return false;
+            if (!sendError(channel, "INVALID_COMMAND")) return false;
             continue;
         }
         if (command == "LOGIN") {
             if (!client.nickname.empty()) {
-                if (!reply(channel, "ERROR ALREADY_LOGGED_IN\n")) return false;
+                if (!sendError(channel, "ALREADY_LOGGED_IN")) return false;
                 continue;
             }
             bool taken = false;
@@ -39,14 +45,14 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
                 if (item.second.nickname == value) { taken = true; break; }
             }
             if (taken) {
-                if (!reply(channel, "ERROR NICKNAME_TAKEN\n")) return false;
+                if (!sendError(channel, "NICKNAME_TAKEN")) return false;
                 continue;
             }
             client.nickname = value;
             if (!reply(channel, "OK LOGIN\n")) return false;
         } else {
             if (client.nickname.empty()) {
-                if (!reply(channel, "ERROR LOGIN_REQUIRED\n")) return false;
+                if (!sendError(channel, "LOGIN_REQUIRED")) return false;
                 continue;
             }
             std::string message = "CHAT " + client.nickname + " " + value + "\n";
