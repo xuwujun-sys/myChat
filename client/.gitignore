@@ -1,6 +1,0 @@
-*.pro.user*
-.qmake.stash
-Makefile*
-build*/
-debug/
-release/
