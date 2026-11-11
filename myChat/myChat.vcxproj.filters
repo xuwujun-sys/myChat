@@ -22,6 +22,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="apps\chat\ChatProtocol.cpp"><Filter>apps\chat</Filter></ClCompile>
+    <ClCompile Include="apps\chat\ChatHandler.cpp"><Filter>apps\chat</Filter></ClCompile>
     <ClCompile Include="network\Buffer.cpp"><Filter>network</Filter></ClCompile>
     <ClCompile Include="network\Channel.cpp"><Filter>network</Filter></ClCompile>
     <ClCompile Include="network\Kernel.cpp"><Filter>network</Filter></ClCompile>
@@ -35,6 +36,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="apps\chat\ChatProtocol.h"><Filter>apps\chat</Filter></ClInclude>
+    <ClInclude Include="apps\chat\ChatHandler.h"><Filter>apps\chat</Filter></ClInclude>
     <ClInclude Include="network\Buffer.h"><Filter>network</Filter></ClInclude>
     <ClInclude Include="network\Channel.h"><Filter>network</Filter></ClInclude>
     <ClInclude Include="network\Kernel.h"><Filter>network</Filter></ClInclude>

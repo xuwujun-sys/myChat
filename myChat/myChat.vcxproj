@@ -76,6 +76,7 @@
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
     <ClCompile Include="apps\chat\ChatProtocol.cpp" />
+    <ClCompile Include="apps\chat\ChatHandler.cpp" />
     <ClCompile Include="network\Buffer.cpp" />
     <ClCompile Include="network\Channel.cpp" />
     <ClCompile Include="apps\echo\EchoHandler.cpp" />
@@ -90,6 +91,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="apps\chat\ChatProtocol.h" />
+    <ClInclude Include="apps\chat\ChatHandler.h" />
     <ClInclude Include="network\Buffer.h" />
     <ClInclude Include="network\Channel.h" />
     <ClInclude Include="network\UniqueFd.h" />

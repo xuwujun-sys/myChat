@@ -1,9 +1,9 @@
 #include "network/Kernel.h"
-#include "apps/http/HttpHandler.h"
+#include "apps/chat/ChatHandler.h"
 
 int main()
 {
-    HttpHandler handler;
+    ChatHandler handler;
     Kernel server(handler);
     return server.run();
 }

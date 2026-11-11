@@ -14,7 +14,7 @@ ChatRoom 第一阶段协议
    命令区分大小写；命令和参数之间用一个空格分隔。
    接收端当前按字节校验长度与 ASCII 控制字符，不校验 UTF-8 编码是否合法。
 
-3. 服务器响应（由后续 ChatHandler 实现）
+3. 服务器响应（由 ChatHandler 实现）
    OK LOGIN\n                    设置昵称成功。
    CHAT 昵称 消息内容\n          其他在线用户发来的群聊消息。
    ERROR INVALID_COMMAND\n       命令格式或内容不合法。
@@ -33,4 +33,4 @@ ChatRoom 第一阶段协议
    服务器的 CHAT 响应包含昵称，最长为 1062 字节（不含 \n），
    客户端接收时需按该上限处理；ChatProtocol::append 只用于接收客户端命令。
 
-此文件描述第一阶段协议。在线用户、错误响应和转发由后续 ChatHandler 实现。
+此文件描述第一阶段协议。在线用户、错误响应和转发由 ChatHandler 实现。
