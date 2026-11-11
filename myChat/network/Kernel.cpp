@@ -91,6 +91,10 @@ void Kernel::handleClientEvent(int fd, std::uint32_t flags)
 
 int Kernel::run()
 {
+    if (idle_timeout_seconds_ < 0) {
+        std::cerr << "Idle timeout must not be negative" << std::endl;
+        return 1;
+    }
     const int port = LISTEN_PORT;
     int listen_fd = listener_.open(port);
     if (listen_fd < 0) return 1;
@@ -133,7 +137,8 @@ int Kernel::run()
         auto now = std::chrono::steady_clock::now();
         for (auto it = clients_.begin(); it != clients_.end();) {
             int fd = it->first;
-            bool idle = it->second->isIdle(now);
+            bool idle = idle_timeout_seconds_ > 0 &&
+                it->second->isIdle(now, idle_timeout_seconds_);
             ++it;
             if (idle) closeClient(fd);
         }

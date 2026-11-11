@@ -27,7 +27,7 @@ public:
     bool hasPendingData() const { return !pending_.empty(); }
     bool isReadClosed() const { return read_closed_; }
     bool shouldCloseAfterSend() const { return close_after_send_; }
-    bool isIdle(std::chrono::steady_clock::time_point now) const;
+    bool isIdle(std::chrono::steady_clock::time_point now, int timeoutSeconds) const;
 
 private:
     Buffer pending_; // 等待发送的数据。

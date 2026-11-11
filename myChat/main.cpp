@@ -4,6 +4,6 @@
 int main()
 {
     ChatHandler handler;
-    Kernel server(handler);
+    Kernel server(handler, 0); // 聊天连接不启用空闲超时。
     return server.run();
 }

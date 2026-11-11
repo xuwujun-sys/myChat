@@ -2,6 +2,7 @@
 #include "TcpChannel.h"
 #include "ListenChannel.h"
 #include "Handler.h"
+#include "../config/config.h"
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
@@ -10,13 +11,16 @@
 class Kernel {
 public:
     // handler 的生命周期需要覆盖 Kernel。
-    explicit Kernel(Handler& handler) : handler_(handler) {}
+    // 超时单位为秒；0 禁用空闲超时，负数会导致 run() 启动失败。
+    explicit Kernel(Handler& handler, int idleTimeoutSeconds = CLIENT_IDLE_TIMEOUT_SECONDS)
+        : handler_(handler), idle_timeout_seconds_(idleTimeoutSeconds) {}
     // 创建服务器并运行事件循环；启动失败或事件循环出错时返回非零值。
     int run();
 private:
     int epoll_fd_ = -1; // Kernel 管理的 epoll 实例。
     ListenChannel listener_;
     Handler& handler_;
+    int idle_timeout_seconds_;
     std::unordered_map<int, std::unique_ptr<TcpChannel>> clients_;
     // 接收并注册所有等待接入的客户端。
     void acceptConnections();

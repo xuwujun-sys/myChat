@@ -74,8 +74,8 @@ bool TcpChannel::sendData()
     return true;
 }
 
-bool TcpChannel::isIdle(std::chrono::steady_clock::time_point now) const
+bool TcpChannel::isIdle(std::chrono::steady_clock::time_point now, int timeoutSeconds) const
 {
-    return now - last_progress_ >= std::chrono::seconds(CLIENT_IDLE_TIMEOUT_SECONDS);
+    return timeoutSeconds > 0 && now - last_progress_ >= std::chrono::seconds(timeoutSeconds);
 }
 
