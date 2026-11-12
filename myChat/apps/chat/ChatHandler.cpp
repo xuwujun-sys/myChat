@@ -27,6 +27,10 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
     if (!client.protocol.append(data, size, lines)) {
         bool ok = sendError(channel, "MESSAGE_TOO_LONG");
         channel.closeAfterSend();
+        if (!client.nickname.empty()) {
+            client.nickname.clear();
+            broadcastUsers();
+        }
         return ok;
     }
     for (const std::string& line : lines) {
@@ -53,6 +57,7 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
         } else {
             if (!broadcastMessage(channel, client, value)) return false;
         }
+        if (channel.shouldCloseAfterSend()) return true;
     }
     return true;
 }
@@ -79,13 +84,16 @@ bool ChatHandler::handleLogin(TcpChannel& channel, ClientState& client,
     }
     if (taken) return sendError(channel, "NICKNAME_TAKEN");
     client.nickname = username;
-    return reply(channel, "OK LOGIN\n");
+    if (!reply(channel, "OK LOGIN\n")) return false;
+    broadcastUsers();
+    return true;
 }
 
 bool ChatHandler::broadcastMessage(TcpChannel& channel, const ClientState& client, const std::string& value)
 {
     if (client.nickname.empty()) return sendError(channel, "LOGIN_REQUIRED");
     std::string message = "CHAT " + client.nickname + " " + value + "\n";
+    bool usersChanged = false;
     for (auto it = clients_.begin(); it != clients_.end();) {
         ClientState& recipient = it->second;
         if (it->first != channel.getFd() && !recipient.nickname.empty() &&
@@ -93,15 +101,41 @@ bool ChatHandler::broadcastMessage(TcpChannel& channel, const ClientState& clien
             !reply(*recipient.channel, message)) {
             // 接收方积压过多时退出群聊，不影响发送者和其他用户。
             recipient.channel->closeAfterSend();
-            it = clients_.erase(it);
-        } else {
-            ++it;
+            recipient.nickname.clear();
+            usersChanged = true;
         }
+        ++it;
     }
+    if (usersChanged) broadcastUsers();
     return true;
+}
+
+void ChatHandler::broadcastUsers()
+{
+    bool usersChanged;
+    do {
+        usersChanged = false;
+        std::string message = "USERS";
+        for (const auto& item : clients_) {
+            if (!item.second.nickname.empty()) message += " " + item.second.nickname;
+        }
+        message += "\n";
+        for (auto& item : clients_) {
+            ClientState& client = item.second;
+            if (!client.nickname.empty() && !reply(*client.channel, message)) {
+                client.channel->closeAfterSend();
+                client.nickname.clear();
+                usersChanged = true;
+            }
+        }
+    } while (usersChanged);
 }
 
 void ChatHandler::onDisconnected(TcpChannel& channel)
 {
-    clients_.erase(channel.getFd());
+    auto it = clients_.find(channel.getFd());
+    if (it == clients_.end()) return;
+    bool wasOnline = !it->second.nickname.empty();
+    clients_.erase(it);
+    if (wasOnline) broadcastUsers();
 }

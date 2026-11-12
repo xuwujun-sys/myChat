@@ -15,6 +15,13 @@ def expect(stream, line):
     assert actual == line, (actual, line)
 
 
+def expect_users(stream, *names):
+    line = stream.readline()
+    parts = line.rstrip(b"\n").split(b" ")
+    assert line.endswith(b"\n") and parts[0] == b"USERS", line
+    assert len(parts) - 1 == len(names) and set(parts[1:]) == set(names), line
+
+
 first, first_in = connect()
 second, second_in = connect()
 guest, guest_in = connect()
@@ -41,8 +48,11 @@ try:
     first.sendall(b"LOG")
     second.sendall(b"LOGIN " + bob + b" pass\n")
     expect(second_in, b"OK LOGIN\n")
+    expect_users(second_in, bob)
     first.sendall(b"IN " + alice + b" pass\n")
     expect(first_in, b"OK LOGIN\n")
+    expect_users(first_in, alice, bob)
+    expect_users(second_in, alice, bob)
     guest.sendall(b"LOGIN " + alice + b" pass\n")
     expect(guest_in, b"ERROR NICKNAME_TAKEN\n")
     first.sendall(b"LOGIN another pass\n")
@@ -68,6 +78,7 @@ try:
     expect(first_in, b"CHAT " + bob + b" still here\n")
     second_in.close()
     second.close()
+    expect_users(first_in, alice)
     # 断开回调处理完成后昵称可重新使用。
     for _ in range(20):
         guest.sendall(b"LOGIN " + bob + b" pass\n")
@@ -78,6 +89,8 @@ try:
         time.sleep(0.05)
     else:
         raise AssertionError("disconnected nickname was not released")
+    expect_users(guest_in, alice, bob)
+    expect_users(first_in, alice, bob)
     guest.sendall(b"MSG after reconnect\n")
     expect(first_in, b"CHAT " + bob + b" after reconnect\n")
 
@@ -85,6 +98,7 @@ try:
     guest.sendall(b"MSG " + b"x" * 1025)
     expect(guest_in, b"ERROR MESSAGE_TOO_LONG\n")
     assert guest_in.read(1) == b""
+    expect_users(first_in, alice)
     first.sendall(b"MSG alone\n")
     first.sendall(b"BAD command\n")
     expect(first_in, b"ERROR INVALID_COMMAND\n")

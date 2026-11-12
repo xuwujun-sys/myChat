@@ -20,6 +20,7 @@ ChatRoom 第一阶段协议
 3. 服务器响应（由 ChatHandler 实现）
    OK REGISTER\n                 注册成功。
    OK LOGIN\n                    登录成功。
+   USERS 昵称1 昵称2...\n       当前在线用户名单，顺序不固定。
    CHAT 昵称 消息内容\n          其他在线用户发来的群聊消息。
    ERROR INVALID_COMMAND\n       命令格式或内容不合法。
    ERROR LOGIN_REQUIRED\n         尚未设置昵称就发送消息。
@@ -36,7 +37,8 @@ ChatRoom 第一阶段协议
    一次接收可以包含半条、一条或多条消息。
    客户端命令行超过 1028 字节（不含 \n）时，停止处理并关闭连接；
    同一次接收中提取的行在发生超限时由调用方丢弃。
-   服务器的 CHAT 响应包含昵称，最长为 1062 字节（不含 \n），
-   客户端接收时需按该上限处理；ChatProtocol::append 只用于接收客户端命令。
+   服务器的 CHAT 响应包含昵称，最长为 1062 字节（不含 \n）。
+   USERS 响应长度随在线人数增加，客户端需支持接收更长的名单；
+   ChatProtocol::append 只用于接收客户端命令。
 
 此文件描述第一阶段协议。在线用户、错误响应和转发由 ChatHandler 实现。
