@@ -21,4 +21,9 @@ private:
         ChatProtocol protocol;
     };
     std::unordered_map<int, ClientState> clients_;
+
+    bool handleLogin(TcpChannel& channel, ClientState& client,
+                     const std::string& username, const std::string& password);
+    bool handleRegister(TcpChannel& channel, const std::string& username, const std::string& password);
+    bool broadcastMessage(TcpChannel& channel, const ClientState& client, const std::string& value);
 };
