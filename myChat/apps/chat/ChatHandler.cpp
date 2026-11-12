@@ -35,20 +35,42 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
             if (!sendError(channel, "INVALID_COMMAND")) return false;
             continue;
         }
-        if (command == "LOGIN") {
+        if (command == "LOGIN" || command == "REGISTER") {
             if (!client.nickname.empty()) {
                 if (!sendError(channel, "ALREADY_LOGGED_IN")) return false;
                 continue;
             }
+            std::size_t space = value.find(' ');
+            std::string username = value.substr(0, space);
+            std::string password = value.substr(space + 1);
+            if (command == "REGISTER") {
+                UserResult result = users_.createUser(username, password);
+                if (result == UserResult::AlreadyExists) {
+                    if (!sendError(channel, "NICKNAME_TAKEN")) return false;
+                } else if (result != UserResult::Success) {
+                    if (!sendError(channel, "DATABASE_ERROR")) return false;
+                } else if (!reply(channel, "OK REGISTER\n")) return false;
+                continue;
+            }
+            User user;
+            UserResult result = users_.findUser(username, user);
+            if (result == UserResult::DatabaseError) {
+                if (!sendError(channel, "DATABASE_ERROR")) return false;
+                continue;
+            }
+            if (result != UserResult::Success || user.password != password) {
+                if (!sendError(channel, "INVALID_CREDENTIALS")) return false;
+                continue;
+            }
             bool taken = false;
             for (const auto& item : clients_) {
-                if (item.second.nickname == value) { taken = true; break; }
+                if (item.second.nickname == username) { taken = true; break; }
             }
             if (taken) {
                 if (!sendError(channel, "NICKNAME_TAKEN")) return false;
                 continue;
             }
-            client.nickname = value;
+            client.nickname = username;
             if (!reply(channel, "OK LOGIN\n")) return false;
         } else {
             if (client.nickname.empty()) {

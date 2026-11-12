@@ -6,20 +6,26 @@ ChatRoom 第一阶段协议
    不支持 \r\n；不发送换行符或其他 ASCII 控制字符作为消息内容。
 
 2. 客户端命令
-   LOGIN 昵称\n       设置昵称，必须在发送消息前完成。
+   REGISTER 用户名 密码\n  注册账号，注册成功后仍需登录。
+   LOGIN 用户名 密码\n     验证账号，必须在发送消息前完成。
    MSG 消息内容\n     发送一条群聊消息。
 
    昵称为 1～32 字节，不含 ASCII 空格或控制字符；按字节比较是否重复。
+   密码为 1～128 字节，不含 ASCII 空格或控制字符。
    消息内容为 1～1024 字节，可以包含空格，但不能包含 ASCII 控制字符。
    命令区分大小写；命令和参数之间用一个空格分隔。
    接收端当前按字节校验长度与 ASCII 控制字符，不校验 UTF-8 编码是否合法。
+   当前密码明文存储并通过未加密 TCP 传输，仅供临时联调。
 
 3. 服务器响应（由 ChatHandler 实现）
-   OK LOGIN\n                    设置昵称成功。
+   OK REGISTER\n                 注册成功。
+   OK LOGIN\n                    登录成功。
    CHAT 昵称 消息内容\n          其他在线用户发来的群聊消息。
    ERROR INVALID_COMMAND\n       命令格式或内容不合法。
    ERROR LOGIN_REQUIRED\n         尚未设置昵称就发送消息。
    ERROR NICKNAME_TAKEN\n         昵称已被使用。
+   ERROR INVALID_CREDENTIALS\n   账号或密码错误。
+   ERROR DATABASE_ERROR\n        数据库操作失败。
    ERROR ALREADY_LOGGED_IN\n      已设置昵称后再次设置。
    ERROR MESSAGE_TOO_LONG\n       客户端命令行超过 1028 字节；发送错误后关闭连接。
 
