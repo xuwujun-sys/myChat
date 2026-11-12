@@ -93,6 +93,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="driver\mysql\MysqlConnection.h" />
+    <ClInclude Include="apps\chat\ChatMessage.h" />
     <ClInclude Include="driver\mysql\UserRepository.h" />
     <ClInclude Include="apps\chat\ChatProtocol.h" />
     <ClInclude Include="apps\chat\ChatHandler.h" />

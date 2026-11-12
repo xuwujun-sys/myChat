@@ -44,6 +44,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="driver\mysql\MysqlConnection.h"><Filter>driver\mysql</Filter></ClInclude>
+    <ClInclude Include="apps\chat\ChatMessage.h"><Filter>apps\chat</Filter></ClInclude>
     <ClInclude Include="driver\mysql\UserRepository.h"><Filter>driver\mysql</Filter></ClInclude>
     <ClInclude Include="apps\chat\ChatProtocol.h"><Filter>apps\chat</Filter></ClInclude>
     <ClInclude Include="apps\chat\ChatHandler.h"><Filter>apps\chat</Filter></ClInclude>
