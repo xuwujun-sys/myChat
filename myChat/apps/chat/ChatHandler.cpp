@@ -30,11 +30,13 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
         return ok;
     }
     for (const std::string& line : lines) {
-        std::string command, value;
-        if (!ChatProtocol::parseCommand(line, command, value)) {
+        std::unique_ptr<ChatMessage> chatMessage = ChatProtocol::parseCommand(line);
+        if (!chatMessage) {
             if (!sendError(channel, "INVALID_COMMAND")) return false;
             continue;
         }
+        std::string command = chatMessage->command();
+        const std::string& value = chatMessage->value();
         if (command == "LOGIN" || command == "REGISTER") {
             if (!client.nickname.empty()) {
                 if (!sendError(channel, "ALREADY_LOGGED_IN")) return false;

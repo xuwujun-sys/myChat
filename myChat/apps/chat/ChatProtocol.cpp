@@ -18,26 +18,25 @@ bool ChatProtocol::append(const char* data, std::size_t size, std::vector<std::s
     return true;
 }
 
-bool ChatProtocol::parseCommand(const std::string& line, std::string& command, std::string& value)
+std::unique_ptr<ChatMessage> ChatProtocol::parseCommand(const std::string& line)
 {
     std::size_t separator = line.find(' ');
-    if (separator == std::string::npos) return false;
+    if (separator == std::string::npos) return nullptr;
     std::string name = line.substr(0, separator);
     std::string argument = line.substr(separator + 1);
     if (name == "LOGIN" || name == "REGISTER") {
         std::size_t space = argument.find(' ');
         if (space == std::string::npos || space == 0 || space > MAX_CHAT_NICKNAME_BYTES ||
             argument.size() - space - 1 == 0 ||
-            argument.size() - space - 1 > MAX_CHAT_PASSWORD_BYTES) return false;
-        for (unsigned char c : argument) if ((c <= 32 && c != ' ') || c == 127) return false;
-        if (argument.find(' ', space + 1) != std::string::npos) return false;
+            argument.size() - space - 1 > MAX_CHAT_PASSWORD_BYTES) return nullptr;
+        for (unsigned char c : argument) if ((c <= 32 && c != ' ') || c == 127) return nullptr;
+        if (argument.find(' ', space + 1) != std::string::npos) return nullptr;
+        if (name == "LOGIN") return std::unique_ptr<ChatMessage>(new LoginMessage(argument));
+        return std::unique_ptr<ChatMessage>(new RegisterMessage(argument));
     } else if (name == "MSG") {
-        if (argument.empty() || argument.size() > MAX_CHAT_MESSAGE_BYTES) return false;
-        for (unsigned char c : argument) if (c < 32 || c == 127) return false;
-    } else {
-        return false;
+        if (argument.empty() || argument.size() > MAX_CHAT_MESSAGE_BYTES) return nullptr;
+        for (unsigned char c : argument) if (c < 32 || c == 127) return nullptr;
+        return std::unique_ptr<ChatMessage>(new TextMessage(argument));
     }
-    command = name;
-    value = argument;
-    return true;
+    return nullptr;
 }
