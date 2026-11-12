@@ -11,7 +11,7 @@ int main()
     User user;
     assert(users.findUser("alice", user) == UserResult::DatabaseError);
     assert(!users.lastError().empty());
-    assert(users.createUser("alice", "hash") == UserResult::DatabaseError);
+    assert(users.createUser("alice", "password") == UserResult::DatabaseError);
 
     // 本机端口 1 没有 MySQL 服务，验证连接失败时不会留下连接对象。
     assert(!connection.connect("tcp://127.0.0.1:1", "test", "test", "chatroom"));
