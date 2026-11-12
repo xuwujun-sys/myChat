@@ -75,6 +75,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
+    <ClCompile Include="driver\mysql\MysqlConnection.cpp" />
+    <ClCompile Include="driver\mysql\UserRepository.cpp" />
     <ClCompile Include="apps\chat\ChatProtocol.cpp" />
     <ClCompile Include="apps\chat\ChatHandler.cpp" />
     <ClCompile Include="network\Buffer.cpp" />
@@ -90,6 +92,8 @@
     <ClCompile Include="network\TcpChannel.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="driver\mysql\MysqlConnection.h" />
+    <ClInclude Include="driver\mysql\UserRepository.h" />
     <ClInclude Include="apps\chat\ChatProtocol.h" />
     <ClInclude Include="apps\chat\ChatHandler.h" />
     <ClInclude Include="network\Buffer.h" />
@@ -108,7 +112,11 @@
     <ClInclude Include="network\ListenChannel.h" />
     <ClInclude Include="network\TcpChannel.h" />
   </ItemGroup>
-  <ItemDefinitionGroup />
+  <ItemDefinitionGroup>
+    <Link>
+      <LibraryDependencies>mysqlcppconn;%(LibraryDependencies)</LibraryDependencies>
+    </Link>
+  </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>

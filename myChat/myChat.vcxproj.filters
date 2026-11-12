@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="driver">
+      <UniqueIdentifier>{2F09B5F8-CB30-4785-835B-06E02C7F520D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="driver\mysql">
+      <UniqueIdentifier>{A51E332D-5A14-41A6-94FD-A3E4BB810235}</UniqueIdentifier>
+    </Filter>
     <Filter Include="apps">
       <UniqueIdentifier>{DE3A4681-BD09-4C97-9B29-9CE2F02D4F78}</UniqueIdentifier>
     </Filter>
@@ -21,6 +27,8 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="driver\mysql\MysqlConnection.cpp"><Filter>driver\mysql</Filter></ClCompile>
+    <ClCompile Include="driver\mysql\UserRepository.cpp"><Filter>driver\mysql</Filter></ClCompile>
     <ClCompile Include="apps\chat\ChatProtocol.cpp"><Filter>apps\chat</Filter></ClCompile>
     <ClCompile Include="apps\chat\ChatHandler.cpp"><Filter>apps\chat</Filter></ClCompile>
     <ClCompile Include="network\Buffer.cpp"><Filter>network</Filter></ClCompile>
@@ -35,6 +43,8 @@
     <ClCompile Include="apps\http\HttpProtocol.cpp"><Filter>apps\http</Filter></ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="driver\mysql\MysqlConnection.h"><Filter>driver\mysql</Filter></ClInclude>
+    <ClInclude Include="driver\mysql\UserRepository.h"><Filter>driver\mysql</Filter></ClInclude>
     <ClInclude Include="apps\chat\ChatProtocol.h"><Filter>apps\chat</Filter></ClInclude>
     <ClInclude Include="apps\chat\ChatHandler.h"><Filter>apps\chat</Filter></ClInclude>
     <ClInclude Include="network\Buffer.h"><Filter>network</Filter></ClInclude>
