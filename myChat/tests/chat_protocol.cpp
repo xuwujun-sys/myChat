@@ -22,6 +22,7 @@ int main()
     assert(dynamic_cast<LoginMessage*>(ChatProtocol::parseCommand("LOGIN user pass").get()));
     assert(dynamic_cast<RegisterMessage*>(ChatProtocol::parseCommand("REGISTER user pass").get()));
     assert(dynamic_cast<TextMessage*>(ChatProtocol::parseCommand("MSG hello").get()));
+    assert(dynamic_cast<PrivateMessage*>(ChatProtocol::parseCommand("PRIVATE user hello world").get()));
 
     assert(first.append("LOG", 3, lines) && lines.empty());
     assert(second.append("MSG other\n", 10, lines) && lines.size() == 1);
@@ -48,6 +49,15 @@ int main()
     assert(!parseCommand("OTHER text", command, value));
     assert(!parseCommand("MSG " + std::string(MAX_CHAT_MESSAGE_BYTES + 1, 'x'), command, value));
     assert(parseCommand("MSG " + std::string(MAX_CHAT_MESSAGE_BYTES, 'x'), command, value));
+    assert(parseCommand("PRIVATE user hello world", command, value) && command == "PRIVATE" && value == "user hello world");
+    assert(!parseCommand("PRIVATE user", command, value));
+    assert(!parseCommand("PRIVATE  hello", command, value));
+    assert(!parseCommand("PRIVATE user ", command, value));
+    assert(!parseCommand("PRIVATE user\tbad hello", command, value));
+    assert(!parseCommand("PRIVATE user hi\r", command, value));
+    assert(!parseCommand("PRIVATE " + std::string(MAX_CHAT_NICKNAME_BYTES + 1, 'n') + " hi", command, value));
+    assert(!parseCommand("PRIVATE user " + std::string(MAX_CHAT_MESSAGE_BYTES + 1, 'x'), command, value));
+    assert(parseCommand("PRIVATE " + std::string(MAX_CHAT_NICKNAME_BYTES, 'n') + " " + std::string(MAX_CHAT_MESSAGE_BYTES, 'x'), command, value));
 
     ChatProtocol large;
     lines.clear();
@@ -55,7 +65,7 @@ int main()
     assert(large.append(valid.data(), valid.size() - 1, lines) && lines.empty());
     assert(large.append(valid.data() + valid.size() - 1, 1, lines) && lines.size() == 1);
     ChatProtocol oversized;
-    std::string invalid = "MSG " + std::string(MAX_CHAT_MESSAGE_BYTES + 1, 'x');
+    std::string invalid = "PRIVATE " + std::string(MAX_CHAT_NICKNAME_BYTES, 'n') + " " + std::string(MAX_CHAT_MESSAGE_BYTES + 1, 'x');
     assert(!oversized.append(invalid.data(), invalid.size(), lines));
     return 0;
 }

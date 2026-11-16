@@ -9,6 +9,7 @@ ChatRoom 第一阶段协议
    REGISTER 用户名 密码\n  注册账号，注册成功后仍需登录。
    LOGIN 用户名 密码\n     验证账号，必须在发送消息前完成。
    MSG 消息内容\n     发送一条群聊消息。
+   PRIVATE 接收人 消息内容\n  向指定在线用户发送私聊。
 
    昵称为 1～32 字节，不含 ASCII 空格或控制字符；按字节比较是否重复。
    密码为 1～128 字节，不含 ASCII 空格或控制字符。
@@ -22,22 +23,28 @@ ChatRoom 第一阶段协议
    OK LOGIN\n                    登录成功。
    USERS 昵称1 昵称2...\n       当前在线用户名单，顺序不固定。
    CHAT 昵称 消息内容\n          其他在线用户发来的群聊消息。
+   PRIVATE 昵称 消息内容\n       其他用户发来的私聊消息。
    ERROR INVALID_COMMAND\n       命令格式或内容不合法。
    ERROR LOGIN_REQUIRED\n         尚未设置昵称就发送消息。
    ERROR NICKNAME_TAKEN\n         昵称已被使用。
    ERROR INVALID_CREDENTIALS\n   账号或密码错误。
    ERROR DATABASE_ERROR\n        数据库操作失败。
    ERROR ALREADY_LOGGED_IN\n      已设置昵称后再次设置。
-   ERROR MESSAGE_TOO_LONG\n       客户端命令行超过 1028 字节；发送错误后关闭连接。
+   ERROR USER_OFFLINE 接收人\n   接收人不在线。
+   ERROR INVALID_RECIPIENT\n     不能给自己发送私聊。
+   ERROR SEND_FAILED 接收人\n    发送给接收人失败。
+   ERROR MESSAGE_TOO_LONG\n       客户端命令行超过 1065 字节；发送错误后关闭连接。
 
    群聊只转发给其他已设置昵称的在线用户，不回发给发送者。
+   私聊不保存离线消息，也不提供成功或已读回执。
 
 4. 分段与多条消息
    每个连接分别缓存未结束的一行；收到 \n 后提取完整行，再解析命令。
    一次接收可以包含半条、一条或多条消息。
-   客户端命令行超过 1028 字节（不含 \n）时，停止处理并关闭连接；
+   客户端命令行超过 1065 字节（不含 \n）时，停止处理并关闭连接；
    同一次接收中提取的行在发生超限时由调用方丢弃。
    服务器的 CHAT 响应包含昵称，最长为 1062 字节（不含 \n）。
+   服务器的 PRIVATE 响应最长为 1065 字节（不含 \n）。
    USERS 响应长度随在线人数增加，客户端需支持接收更长的名单；
    ChatProtocol::append 只用于接收客户端命令。
 

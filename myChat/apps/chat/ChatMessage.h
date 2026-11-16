@@ -38,3 +38,13 @@ public:
 private:
     std::string value_;
 };
+
+class PrivateMessage : public ChatMessage {
+public:
+    explicit PrivateMessage(const std::string& value) : value_(value) {}
+    const char* command() const override { return "PRIVATE"; }
+    const std::string& value() const override { return value_; }
+
+private:
+    std::string value_;
+};

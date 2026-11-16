@@ -4,7 +4,7 @@
 bool ChatProtocol::append(const char* data, std::size_t size, std::vector<std::string>& lines)
 {
     const std::size_t loginLimit = 10 + MAX_CHAT_NICKNAME_BYTES + MAX_CHAT_PASSWORD_BYTES; // REGISTER、空格和账号密码。
-    const std::size_t messageLimit = 4 + MAX_CHAT_MESSAGE_BYTES; // MSG、空格和内容。
+    const std::size_t messageLimit = 9 + MAX_CHAT_NICKNAME_BYTES + MAX_CHAT_MESSAGE_BYTES; // PRIVATE、空格、接收人和内容。
     const std::size_t maxLineBytes = loginLimit > messageLimit ? loginLimit : messageLimit;
     for (std::size_t i = 0; i < size; ++i) {
         if (data[i] == '\n') {
@@ -33,6 +33,19 @@ std::unique_ptr<ChatMessage> ChatProtocol::parseCommand(const std::string& line)
         if (argument.find(' ', space + 1) != std::string::npos) return nullptr;
         if (name == "LOGIN") return std::unique_ptr<ChatMessage>(new LoginMessage(argument));
         return std::unique_ptr<ChatMessage>(new RegisterMessage(argument));
+    } else if (name == "PRIVATE") {
+        std::size_t space = argument.find(' ');
+        if (space == std::string::npos || space == 0 || space > MAX_CHAT_NICKNAME_BYTES ||
+            argument.size() - space - 1 == 0 || argument.size() - space - 1 > MAX_CHAT_MESSAGE_BYTES) return nullptr;
+        for (std::size_t i = 0; i < space; ++i) {
+            unsigned char c = argument[i];
+            if (c <= 32 || c == 127) return nullptr;
+        }
+        for (std::size_t i = space + 1; i < argument.size(); ++i) {
+            unsigned char c = argument[i];
+            if (c < 32 || c == 127) return nullptr;
+        }
+        return std::unique_ptr<ChatMessage>(new PrivateMessage(argument));
     } else if (name == "MSG") {
         if (argument.empty() || argument.size() > MAX_CHAT_MESSAGE_BYTES) return nullptr;
         for (unsigned char c : argument) if (c < 32 || c == 127) return nullptr;

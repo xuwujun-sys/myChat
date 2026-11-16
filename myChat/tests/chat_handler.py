@@ -3,6 +3,7 @@ import socket
 import time
 import os
 import uuid
+import select
 
 
 def connect():
@@ -95,7 +96,7 @@ try:
     expect(first_in, b"CHAT " + bob + b" after reconnect\n")
 
     # 超长未结束行返回错误并关闭，不再参与群聊。
-    guest.sendall(b"MSG " + b"x" * 1025)
+    guest.sendall(b"PRIVATE " + b"n" * 32 + b" " + b"x" * 1025)
     expect(guest_in, b"ERROR MESSAGE_TOO_LONG\n")
     assert guest_in.read(1) == b""
     expect_users(first_in, alice)
@@ -107,4 +108,34 @@ finally:
     for stream in (first_in, second_in, guest_in):
         stream.close()
     for sock in (first, second, guest):
+        sock.close()
+
+# 三个已登录用户验证私聊隔离，以及未登录和非法目标。
+clients = [connect() for _ in range(4)]
+names = [b"p" + uuid.uuid4().hex[:12].encode() for _ in range(3)]
+try:
+    clients[3][0].sendall(b"PRIVATE " + names[0] + b" hello\n")
+    expect(clients[3][1], b"ERROR LOGIN_REQUIRED\n")
+    for i in range(3):
+        sock, stream = clients[i]
+        sock.sendall(b"REGISTER " + names[i] + b" pass\nLOGIN " + names[i] + b" pass\n")
+        expect(stream, b"OK REGISTER\n")
+        expect(stream, b"OK LOGIN\n")
+        for j in range(i + 1):
+            expect_users(clients[j][1], *names[:i + 1])
+
+    clients[0][0].sendall(b"PRIVATE " + names[1] + b" hello ")
+    clients[0][0].sendall(b"private world\n")
+    expect(clients[1][1], b"PRIVATE " + names[0] + b" hello private world\n")
+    assert not select.select([clients[0][0], clients[2][0], clients[3][0]], [], [], 0.15)[0]
+    clients[0][0].sendall(b"PRIVATE missing hello\nPRIVATE " + names[0] + b" hello\nPRIVATE " + names[1] + b" \n")
+    expect(clients[0][1], b"ERROR USER_OFFLINE missing\n")
+    expect(clients[0][1], b"ERROR INVALID_RECIPIENT\n")
+    expect(clients[0][1], b"ERROR INVALID_COMMAND\n")
+    clients[0][0].sendall(b"PRIVATE " + names[1] + b" " + b"x" * 1024 + b"\n")
+    expect(clients[1][1], b"PRIVATE " + names[0] + b" " + b"x" * 1024 + b"\n")
+    print("Private message checks passed")
+finally:
+    for sock, stream in clients:
+        stream.close()
         sock.close()

@@ -54,6 +54,8 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
             } else {
                 if (!handleLogin(channel, client, username, password)) return false;
             }
+        } else if (command == "PRIVATE") {
+            if (!handlePrivateMessage(channel, client, value)) return false;
         } else {
             if (!broadcastMessage(channel, client, value)) return false;
         }
@@ -87,6 +89,27 @@ bool ChatHandler::handleLogin(TcpChannel& channel, ClientState& client,
     if (!reply(channel, "OK LOGIN\n")) return false;
     broadcastUsers();
     return true;
+}
+
+bool ChatHandler::handlePrivateMessage(TcpChannel& channel, const ClientState& client, const std::string& value)
+{
+    if (client.nickname.empty()) return sendError(channel, "LOGIN_REQUIRED");
+    std::size_t space = value.find(' ');
+    std::string recipientName = value.substr(0, space);
+    if (recipientName == client.nickname) return sendError(channel, "INVALID_RECIPIENT");
+    for (auto& item : clients_) {
+        ClientState& recipient = item.second;
+        if (recipient.nickname == recipientName && !recipient.channel->shouldCloseAfterSend()) {
+            std::string message = "PRIVATE " + client.nickname + " " + value.substr(space + 1) + "\n";
+            if (reply(*recipient.channel, message)) return true;
+            recipient.channel->closeAfterSend();
+            recipient.nickname.clear();
+            bool ok = sendError(channel, "SEND_FAILED " + recipientName);
+            broadcastUsers();
+            return ok;
+        }
+    }
+    return sendError(channel, "USER_OFFLINE " + recipientName);
 }
 
 bool ChatHandler::broadcastMessage(TcpChannel& channel, const ClientState& client, const std::string& value)
