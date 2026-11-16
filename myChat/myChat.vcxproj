@@ -76,6 +76,7 @@
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
     <ClCompile Include="driver\mysql\MysqlConnection.cpp" />
+    <ClCompile Include="driver\mysql\GroupRepository.cpp" />
     <ClCompile Include="driver\mysql\UserRepository.cpp" />
     <ClCompile Include="apps\chat\ChatProtocol.cpp" />
     <ClCompile Include="apps\chat\ChatHandler.cpp" />
@@ -93,6 +94,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="driver\mysql\MysqlConnection.h" />
+    <ClInclude Include="driver\mysql\GroupRepository.h" />
     <ClInclude Include="apps\chat\ChatMessage.h" />
     <ClInclude Include="driver\mysql\UserRepository.h" />
     <ClInclude Include="apps\chat\ChatProtocol.h" />

@@ -28,6 +28,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="driver\mysql\MysqlConnection.cpp"><Filter>driver\mysql</Filter></ClCompile>
+    <ClCompile Include="driver\mysql\GroupRepository.cpp"><Filter>driver\mysql</Filter></ClCompile>
     <ClCompile Include="driver\mysql\UserRepository.cpp"><Filter>driver\mysql</Filter></ClCompile>
     <ClCompile Include="apps\chat\ChatProtocol.cpp"><Filter>apps\chat</Filter></ClCompile>
     <ClCompile Include="apps\chat\ChatHandler.cpp"><Filter>apps\chat</Filter></ClCompile>
@@ -44,6 +45,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="driver\mysql\MysqlConnection.h"><Filter>driver\mysql</Filter></ClInclude>
+    <ClInclude Include="driver\mysql\GroupRepository.h"><Filter>driver\mysql</Filter></ClInclude>
     <ClInclude Include="apps\chat\ChatMessage.h"><Filter>apps\chat</Filter></ClInclude>
     <ClInclude Include="driver\mysql\UserRepository.h"><Filter>driver\mysql</Filter></ClInclude>
     <ClInclude Include="apps\chat\ChatProtocol.h"><Filter>apps\chat</Filter></ClInclude>
