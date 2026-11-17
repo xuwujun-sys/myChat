@@ -1,18 +1,20 @@
 #pragma once
 #include <string>
 
+enum class ChatCommand { Login, Register, Text, Private };
+
 // 客户端消息的统一接口。
 class ChatMessage {
 public:
     virtual ~ChatMessage() = default;
-    virtual const char* command() const = 0;
+    virtual ChatCommand command() const = 0;
     virtual const std::string& value() const = 0;
 };
 
 class LoginMessage : public ChatMessage {
 public:
     explicit LoginMessage(const std::string& value) : value_(value) {}
-    const char* command() const override { return "LOGIN"; }
+    ChatCommand command() const override { return ChatCommand::Login; }
     const std::string& value() const override { return value_; }
 
 private:
@@ -22,7 +24,7 @@ private:
 class RegisterMessage : public ChatMessage {
 public:
     explicit RegisterMessage(const std::string& value) : value_(value) {}
-    const char* command() const override { return "REGISTER"; }
+    ChatCommand command() const override { return ChatCommand::Register; }
     const std::string& value() const override { return value_; }
 
 private:
@@ -32,7 +34,7 @@ private:
 class TextMessage : public ChatMessage {
 public:
     explicit TextMessage(const std::string& value) : value_(value) {}
-    const char* command() const override { return "MSG"; }
+    ChatCommand command() const override { return ChatCommand::Text; }
     const std::string& value() const override { return value_; }
 
 private:
@@ -42,7 +44,7 @@ private:
 class PrivateMessage : public ChatMessage {
 public:
     explicit PrivateMessage(const std::string& value) : value_(value) {}
-    const char* command() const override { return "PRIVATE"; }
+    ChatCommand command() const override { return ChatCommand::Private; }
     const std::string& value() const override { return value_; }
 
 private:

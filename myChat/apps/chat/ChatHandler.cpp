@@ -39,9 +39,11 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
             if (!sendError(channel, "INVALID_COMMAND")) return false;
             continue;
         }
-        std::string command = chatMessage->command();
+        ChatCommand command = chatMessage->command();
         const std::string& value = chatMessage->value();
-        if (command == "LOGIN" || command == "REGISTER") {
+        switch (command) {
+        case ChatCommand::Login:
+        case ChatCommand::Register: {
             if (!client.nickname.empty()) {
                 if (!sendError(channel, "ALREADY_LOGGED_IN")) return false;
                 continue;
@@ -49,15 +51,19 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
             std::size_t space = value.find(' ');
             std::string username = value.substr(0, space);
             std::string password = value.substr(space + 1);
-            if (command == "REGISTER") {
+            if (command == ChatCommand::Register) {
                 if (!handleRegister(channel, username, password)) return false;
             } else {
                 if (!handleLogin(channel, client, username, password)) return false;
             }
-        } else if (command == "PRIVATE") {
+            break;
+        }
+        case ChatCommand::Private:
             if (!handlePrivateMessage(channel, client, value)) return false;
-        } else {
+            break;
+        case ChatCommand::Text:
             if (!broadcastMessage(channel, client, value)) return false;
+            break;
         }
         if (channel.shouldCloseAfterSend()) return true;
     }
