@@ -20,17 +20,30 @@ void ChatHandler::onConnected(TcpChannel& channel)
     clients_[channel.getFd()].channel = &channel;
 }
 
+ChatHandler::ClientState* ChatHandler::findClientByNickname(const std::string& nickname, bool requireOpen)
+{
+    for (auto& item : clients_) {
+        ClientState& client = item.second;
+        if (client.nickname == nickname && (!requireOpen || !client.channel->shouldCloseAfterSend())) return &client;
+    }
+    return nullptr;
+}
+
+void ChatHandler::markOffline(ClientState& client)
+{
+    client.channel->closeAfterSend();
+    client.nickname.clear();
+}
+
 bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size)
 {
     ClientState& client = clients_.at(channel.getFd());
     std::vector<std::string> lines;
     if (!client.protocol.append(data, size, lines)) {
         bool ok = sendError(channel, "MESSAGE_TOO_LONG");
-        channel.closeAfterSend();
-        if (!client.nickname.empty()) {
-            client.nickname.clear();
-            broadcastUsers();
-        }
+        bool wasOnline = !client.nickname.empty();
+        markOffline(client);
+        if (wasOnline) broadcastUsers();
         return ok;
     }
     for (const std::string& line : lines) {
@@ -86,11 +99,7 @@ bool ChatHandler::handleLogin(TcpChannel& channel, ClientState& client,
     if (result == UserResult::DatabaseError) return sendError(channel, "DATABASE_ERROR");
     if (result != UserResult::Success || user.password != password) return sendError(channel, "INVALID_CREDENTIALS");
 
-    bool taken = false;
-    for (const auto& item : clients_) {
-        if (item.second.nickname == username) { taken = true; break; }
-    }
-    if (taken) return sendError(channel, "NICKNAME_TAKEN");
+    if (findClientByNickname(username)) return sendError(channel, "NICKNAME_TAKEN");
     client.nickname = username;
     if (!reply(channel, "OK LOGIN\n")) return false;
     broadcastUsers();
@@ -103,19 +112,14 @@ bool ChatHandler::handlePrivateMessage(TcpChannel& channel, const ClientState& c
     std::size_t space = value.find(' ');
     std::string recipientName = value.substr(0, space);
     if (recipientName == client.nickname) return sendError(channel, "INVALID_RECIPIENT");
-    for (auto& item : clients_) {
-        ClientState& recipient = item.second;
-        if (recipient.nickname == recipientName && !recipient.channel->shouldCloseAfterSend()) {
-            std::string message = "PRIVATE " + client.nickname + " " + value.substr(space + 1) + "\n";
-            if (reply(*recipient.channel, message)) return true;
-            recipient.channel->closeAfterSend();
-            recipient.nickname.clear();
-            bool ok = sendError(channel, "SEND_FAILED " + recipientName);
-            broadcastUsers();
-            return ok;
-        }
-    }
-    return sendError(channel, "USER_OFFLINE " + recipientName);
+    ClientState* recipient = findClientByNickname(recipientName, true);
+    if (!recipient) return sendError(channel, "USER_OFFLINE " + recipientName);
+    std::string message = "PRIVATE " + client.nickname + " " + value.substr(space + 1) + "\n";
+    if (reply(*recipient->channel, message)) return true;
+    markOffline(*recipient);
+    bool ok = sendError(channel, "SEND_FAILED " + recipientName);
+    broadcastUsers();
+    return ok;
 }
 
 bool ChatHandler::broadcastMessage(TcpChannel& channel, const ClientState& client, const std::string& value)
@@ -129,8 +133,7 @@ bool ChatHandler::broadcastMessage(TcpChannel& channel, const ClientState& clien
             !recipient.channel->shouldCloseAfterSend() &&
             !reply(*recipient.channel, message)) {
             // 接收方积压过多时退出群聊，不影响发送者和其他用户。
-            recipient.channel->closeAfterSend();
-            recipient.nickname.clear();
+            markOffline(recipient);
             usersChanged = true;
         }
         ++it;
@@ -152,8 +155,7 @@ void ChatHandler::broadcastUsers()
         for (auto& item : clients_) {
             ClientState& client = item.second;
             if (!client.nickname.empty() && !reply(*client.channel, message)) {
-                client.channel->closeAfterSend();
-                client.nickname.clear();
+                markOffline(client);
                 usersChanged = true;
             }
         }

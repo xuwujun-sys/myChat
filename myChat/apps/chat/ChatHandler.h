@@ -22,6 +22,9 @@ private:
     };
     std::unordered_map<int, ClientState> clients_;
 
+    // requireOpen 为 true 时跳过发送完后即将关闭的连接。
+    ClientState* findClientByNickname(const std::string& nickname, bool requireOpen = false);
+    void markOffline(ClientState& client); // 标记关闭并清空昵称；不广播名单。
     bool handleLogin(TcpChannel& channel, ClientState& client,
                      const std::string& username, const std::string& password);
     bool handleRegister(TcpChannel& channel, const std::string& username, const std::string& password);
