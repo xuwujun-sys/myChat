@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <string>
 
 enum class ChatCommand { Login, Register, Text, Private };
@@ -11,24 +12,32 @@ public:
     virtual const std::string& value() const = 0;
 };
 
-class LoginMessage : public ChatMessage {
+class AccountMessage : public ChatMessage {
 public:
-    explicit LoginMessage(const std::string& value) : value_(value) {}
-    ChatCommand command() const override { return ChatCommand::Login; }
     const std::string& value() const override { return value_; }
+    const std::string& username() const { return username_; }
+    const std::string& password() const { return password_; }
+
+protected:
+    AccountMessage(const std::string& value, std::size_t separator)
+        : value_(value), username_(value.substr(0, separator)), password_(value.substr(separator + 1)) {}
 
 private:
     std::string value_;
+    std::string username_;
+    std::string password_;
 };
 
-class RegisterMessage : public ChatMessage {
+class LoginMessage : public AccountMessage {
 public:
-    explicit RegisterMessage(const std::string& value) : value_(value) {}
-    ChatCommand command() const override { return ChatCommand::Register; }
-    const std::string& value() const override { return value_; }
+    LoginMessage(const std::string& value, std::size_t separator) : AccountMessage(value, separator) {}
+    ChatCommand command() const override { return ChatCommand::Login; }
+};
 
-private:
-    std::string value_;
+class RegisterMessage : public AccountMessage {
+public:
+    RegisterMessage(const std::string& value, std::size_t separator) : AccountMessage(value, separator) {}
+    ChatCommand command() const override { return ChatCommand::Register; }
 };
 
 class TextMessage : public ChatMessage {
@@ -43,10 +52,15 @@ private:
 
 class PrivateMessage : public ChatMessage {
 public:
-    explicit PrivateMessage(const std::string& value) : value_(value) {}
+    PrivateMessage(const std::string& value, std::size_t separator)
+        : value_(value), receiver_(value.substr(0, separator)), content_(value.substr(separator + 1)) {}
     ChatCommand command() const override { return ChatCommand::Private; }
     const std::string& value() const override { return value_; }
+    const std::string& receiver() const { return receiver_; }
+    const std::string& content() const { return content_; }
 
 private:
     std::string value_;
+    std::string receiver_;
+    std::string content_;
 };

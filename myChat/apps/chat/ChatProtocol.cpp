@@ -10,8 +10,8 @@ std::unique_ptr<ChatMessage> parseAccount(const std::string& name, const std::st
         argument.size() - space - 1 > MAX_CHAT_PASSWORD_BYTES) return nullptr;
     for (unsigned char c : argument) if ((c <= 32 && c != ' ') || c == 127) return nullptr;
     if (argument.find(' ', space + 1) != std::string::npos) return nullptr;
-    if (name == "LOGIN") return std::unique_ptr<ChatMessage>(new LoginMessage(argument));
-    return std::unique_ptr<ChatMessage>(new RegisterMessage(argument));
+    if (name == "LOGIN") return std::unique_ptr<ChatMessage>(new LoginMessage(argument, space));
+    return std::unique_ptr<ChatMessage>(new RegisterMessage(argument, space));
 }
 
 std::unique_ptr<ChatMessage> parsePrivate(const std::string& argument)
@@ -27,7 +27,7 @@ std::unique_ptr<ChatMessage> parsePrivate(const std::string& argument)
         unsigned char c = argument[i];
         if (c < 32 || c == 127) return nullptr;
     }
-    return std::unique_ptr<ChatMessage>(new PrivateMessage(argument));
+    return std::unique_ptr<ChatMessage>(new PrivateMessage(argument, space));
 }
 
 std::unique_ptr<ChatMessage> parseText(const std::string& argument)

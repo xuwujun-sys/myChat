@@ -29,6 +29,6 @@ private:
                      const std::string& username, const std::string& password);
     bool handleRegister(TcpChannel& channel, const std::string& username, const std::string& password);
     bool broadcastMessage(TcpChannel& channel, const ClientState& client, const std::string& value);
-    bool handlePrivateMessage(TcpChannel& channel, const ClientState& client, const std::string& value);
+    bool handlePrivateMessage(TcpChannel& channel, const ClientState& client, const PrivateMessage& message);
     void broadcastUsers();
 };

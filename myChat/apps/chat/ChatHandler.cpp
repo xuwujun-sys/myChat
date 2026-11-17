@@ -61,19 +61,20 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
                 if (!sendError(channel, "ALREADY_LOGGED_IN")) return false;
                 continue;
             }
-            std::size_t space = value.find(' ');
-            std::string username = value.substr(0, space);
-            std::string password = value.substr(space + 1);
+            const AccountMessage* account = dynamic_cast<const AccountMessage*>(chatMessage.get());
+            if (!account) return false;
             if (command == ChatCommand::Register) {
-                if (!handleRegister(channel, username, password)) return false;
+                if (!handleRegister(channel, account->username(), account->password())) return false;
             } else {
-                if (!handleLogin(channel, client, username, password)) return false;
+                if (!handleLogin(channel, client, account->username(), account->password())) return false;
             }
             break;
         }
-        case ChatCommand::Private:
-            if (!handlePrivateMessage(channel, client, value)) return false;
+        case ChatCommand::Private: {
+            const PrivateMessage* message = dynamic_cast<const PrivateMessage*>(chatMessage.get());
+            if (!message || !handlePrivateMessage(channel, client, *message)) return false;
             break;
+        }
         case ChatCommand::Text:
             if (!broadcastMessage(channel, client, value)) return false;
             break;
@@ -106,15 +107,14 @@ bool ChatHandler::handleLogin(TcpChannel& channel, ClientState& client,
     return true;
 }
 
-bool ChatHandler::handlePrivateMessage(TcpChannel& channel, const ClientState& client, const std::string& value)
+bool ChatHandler::handlePrivateMessage(TcpChannel& channel, const ClientState& client, const PrivateMessage& privateMessage)
 {
     if (client.nickname.empty()) return sendError(channel, "LOGIN_REQUIRED");
-    std::size_t space = value.find(' ');
-    std::string recipientName = value.substr(0, space);
+    const std::string& recipientName = privateMessage.receiver();
     if (recipientName == client.nickname) return sendError(channel, "INVALID_RECIPIENT");
     ClientState* recipient = findClientByNickname(recipientName, true);
     if (!recipient) return sendError(channel, "USER_OFFLINE " + recipientName);
-    std::string message = "PRIVATE " + client.nickname + " " + value.substr(space + 1) + "\n";
+    std::string message = "PRIVATE " + client.nickname + " " + privateMessage.content() + "\n";
     if (reply(*recipient->channel, message)) return true;
     markOffline(*recipient);
     bool ok = sendError(channel, "SEND_FAILED " + recipientName);

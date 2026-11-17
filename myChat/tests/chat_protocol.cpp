@@ -25,6 +25,16 @@ int main()
     assert(dynamic_cast<TextMessage*>(ChatProtocol::parseCommand("MSG hello").get()));
     assert(dynamic_cast<PrivateMessage*>(ChatProtocol::parseCommand("PRIVATE user hello world").get()));
 
+    std::unique_ptr<ChatMessage> login = ChatProtocol::parseCommand("LOGIN alice pass");
+    const AccountMessage* account = dynamic_cast<const AccountMessage*>(login.get());
+    assert(account && account->username() == "alice" && account->password() == "pass");
+    std::unique_ptr<ChatMessage> registration = ChatProtocol::parseCommand("REGISTER bob secret");
+    account = dynamic_cast<const AccountMessage*>(registration.get());
+    assert(account && account->username() == "bob" && account->password() == "secret");
+    std::unique_ptr<ChatMessage> privateMessage = ChatProtocol::parseCommand("PRIVATE bob hello world");
+    const PrivateMessage* privateData = dynamic_cast<const PrivateMessage*>(privateMessage.get());
+    assert(privateData && privateData->receiver() == "bob" && privateData->content() == "hello world");
+
     assert(first.append("LOG", 3, lines) && lines.empty());
     assert(second.append("MSG other\n", 10, lines) && lines.size() == 1);
     assert(lines[0] == "MSG other");
