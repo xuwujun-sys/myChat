@@ -1,8 +1,9 @@
 #pragma once
 #include <cstddef>
+#include <cstdint>
 #include <string>
 
-enum class ChatCommand { Login, Register, Text, Private, CreateGroup, MyGroups };
+enum class ChatCommand { Login, Register, Text, Private, CreateGroup, MyGroups, JoinGroup };
 
 // 客户端消息的统一接口。
 class ChatMessage {
@@ -67,6 +68,18 @@ public:
 
 private:
     std::string value_;
+};
+
+class JoinGroupMessage : public ChatMessage {
+public:
+    JoinGroupMessage(const std::string& value, std::uint64_t groupId) : value_(value), groupId_(groupId) {}
+    ChatCommand command() const override { return ChatCommand::JoinGroup; }
+    const std::string& value() const override { return value_; }
+    std::uint64_t groupId() const { return groupId_; }
+
+private:
+    std::string value_;
+    std::uint64_t groupId_;
 };
 
 class PrivateMessage : public ChatMessage {

@@ -1,5 +1,6 @@
 #include "ChatProtocol.h"
 #include "../../config/config.h"
+#include <limits>
 
 namespace {
 std::unique_ptr<ChatMessage> parseAccount(const std::string& name, const std::string& argument)
@@ -43,6 +44,20 @@ std::unique_ptr<ChatMessage> parseCreateGroup(const std::string& name)
     for (unsigned char c : name) if (c < 32 || c == 127) return nullptr;
     return std::unique_ptr<ChatMessage>(new CreateGroupMessage(name));
 }
+
+std::unique_ptr<ChatMessage> parseJoinGroup(const std::string& value)
+{
+    if (value.empty() || value.size() > 20) return nullptr;
+    std::uint64_t id = 0;
+    for (char c : value) {
+        if (c < '0' || c > '9') return nullptr;
+        unsigned int digit = c - '0';
+        if (id > (std::numeric_limits<std::uint64_t>::max() - digit) / 10) return nullptr;
+        id = id * 10 + digit;
+    }
+    if (id == 0) return nullptr;
+    return std::unique_ptr<ChatMessage>(new JoinGroupMessage(value, id));
+}
 }
 
 bool ChatProtocol::append(const char* data, std::size_t size, std::vector<std::string>& lines)
@@ -51,7 +66,8 @@ bool ChatProtocol::append(const char* data, std::size_t size, std::vector<std::s
     const std::size_t messageLimit = 9 + MAX_CHAT_NICKNAME_BYTES + MAX_CHAT_MESSAGE_BYTES; // PRIVATE、空格、接收人和内容。
     const std::size_t groupLimit = 13 + MAX_CHAT_GROUP_NAME_BYTES; // CREATE_GROUP、空格和群名。
     const std::size_t otherLimit = loginLimit > groupLimit ? loginLimit : groupLimit;
-    const std::size_t maxLineBytes = otherLimit > messageLimit ? otherLimit : messageLimit;
+    const std::size_t existingLimit = otherLimit > messageLimit ? otherLimit : messageLimit;
+    const std::size_t maxLineBytes = existingLimit > 31 ? existingLimit : 31; // JOIN_GROUP 和最多 20 位群 ID。
     for (std::size_t i = 0; i < size; ++i) {
         if (data[i] == '\n') {
             lines.push_back(pending_);
@@ -75,5 +91,6 @@ std::unique_ptr<ChatMessage> ChatProtocol::parseCommand(const std::string& line)
     if (name == "PRIVATE") return parsePrivate(argument);
     if (name == "MSG") return parseText(argument);
     if (name == "CREATE_GROUP") return parseCreateGroup(argument);
+    if (name == "JOIN_GROUP") return parseJoinGroup(argument);
     return nullptr;
 }

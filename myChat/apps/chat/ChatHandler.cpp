@@ -86,6 +86,11 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
         case ChatCommand::MyGroups:
             if (!handleMyGroups(channel, client)) return false;
             break;
+        case ChatCommand::JoinGroup: {
+            const JoinGroupMessage* message = dynamic_cast<const JoinGroupMessage*>(chatMessage.get());
+            if (!message || !handleJoinGroup(channel, client, message->groupId())) return false;
+            break;
+        }
         }
         if (channel.shouldCloseAfterSend()) return true;
     }
@@ -146,6 +151,17 @@ bool ChatHandler::handleMyGroups(TcpChannel& channel, const ClientState& client)
         if (!reply(channel, "MY_GROUP " + std::to_string(group.id) + " " + group.name + "\n")) return false;
     }
     return reply(channel, "MY_GROUPS_END\n");
+}
+
+bool ChatHandler::handleJoinGroup(TcpChannel& channel, const ClientState& client, std::uint64_t groupId)
+{
+    if (client.nickname.empty()) return sendError(channel, "LOGIN_REQUIRED");
+    GroupResult result = groups_.addMember(groupId, client.user_id);
+    std::string id = std::to_string(groupId);
+    if (result == GroupResult::AlreadyMember) return sendError(channel, "ALREADY_GROUP_MEMBER " + id);
+    if (result == GroupResult::NotFound) return sendError(channel, "GROUP_OR_USER_NOT_FOUND " + id);
+    if (result != GroupResult::Success) return sendError(channel, "DATABASE_ERROR");
+    return reply(channel, "OK JOIN_GROUP " + id + "\n");
 }
 
 bool ChatHandler::handlePrivateMessage(TcpChannel& channel, const ClientState& client, const PrivateMessage& privateMessage)

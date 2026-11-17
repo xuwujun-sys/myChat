@@ -82,6 +82,18 @@ int main()
     assert(parseCommand("MY_GROUPS", command, value) && command == ChatCommand::MyGroups && value.empty());
     assert(!parseCommand("MY_GROUPS ", command, value));
     assert(!parseCommand("MY_GROUPS extra", command, value));
+    std::unique_ptr<ChatMessage> join = ChatProtocol::parseCommand("JOIN_GROUP 00042");
+    const JoinGroupMessage* joinData = dynamic_cast<const JoinGroupMessage*>(join.get());
+    assert(joinData && joinData->command() == ChatCommand::JoinGroup && joinData->groupId() == 42);
+    assert(parseCommand("JOIN_GROUP 18446744073709551615", command, value));
+    assert(!parseCommand("JOIN_GROUP", command, value));
+    assert(!parseCommand("JOIN_GROUP ", command, value));
+    assert(!parseCommand("JOIN_GROUP 0", command, value));
+    assert(!parseCommand("JOIN_GROUP -1", command, value));
+    assert(!parseCommand("JOIN_GROUP +1", command, value));
+    assert(!parseCommand("JOIN_GROUP 1 2", command, value));
+    assert(!parseCommand("JOIN_GROUP 18446744073709551616", command, value));
+    assert(!parseCommand("JOIN_GROUP 000000000000000000001", command, value));
 
     ChatProtocol large;
     lines.clear();

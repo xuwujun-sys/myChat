@@ -12,10 +12,12 @@ ChatRoom 第一阶段协议
    PRIVATE 接收人 消息内容\n  向指定在线用户发送私聊。
    CREATE_GROUP 群名\n         创建群并加入创建者。
    MY_GROUPS\n                  查询当前用户加入的群，不接受参数。
+   JOIN_GROUP 群ID\n             已登录用户通过群 ID 加入群。
 
    昵称为 1～32 字节，不含 ASCII 空格或控制字符；按字节比较是否重复。
    密码为 1～128 字节，不含 ASCII 空格或控制字符。
    群名为 1～64 字节，首尾不含空格，可以包含中间的空格，不含 ASCII 控制字符。
+   群 ID 为 1～20 位十进制数字，值大于 0 且不超过 64 位无符号整数上限；允许前导零。
    消息内容为 1～1024 字节，可以包含空格，但不能包含 ASCII 控制字符。
    命令区分大小写；命令和参数之间用一个空格分隔。
    接收端当前按字节校验长度与 ASCII 控制字符，不校验 UTF-8 编码是否合法。
@@ -25,6 +27,7 @@ ChatRoom 第一阶段协议
    OK REGISTER\n                 注册成功。
    OK LOGIN\n                    登录成功。
    OK CREATE_GROUP 群ID 群名\n   创建群成功。
+   OK JOIN_GROUP 群ID\n          加入群成功，群 ID 不包含前导零。
    MY_GROUPS_BEGIN\n              群列表开始。
    MY_GROUP 群ID 群名\n           群列表中的一项，群名可以包含空格。
    MY_GROUPS_END\n                群列表结束；空列表只有开始和结束两行。
@@ -41,11 +44,14 @@ ChatRoom 第一阶段协议
    ERROR INVALID_RECIPIENT\n     不能给自己发送私聊。
    ERROR SEND_FAILED 接收人\n    发送给接收人失败。
    ERROR CREATE_GROUP_UNCERTAIN 群ID\n  提交结果未知；群 ID 仅供查询确认，不要直接重试。
+   ERROR ALREADY_GROUP_MEMBER 群ID\n    当前用户已经加入该群。
+   ERROR GROUP_OR_USER_NOT_FOUND 群ID\n  群或当前用户不存在。
    ERROR MESSAGE_TOO_LONG\n       客户端命令行超过 1065 字节；发送错误后关闭连接。
 
    群聊只转发给其他已设置昵称的在线用户，不回发给发送者。
    私聊不保存离线消息，也不提供成功或已读回执。
    群列表只在收到 MY_GROUPS_END 后才算完整；查询失败返回 ERROR DATABASE_ERROR。
+   知道群 ID 的已登录用户可以直接加入，当前没有邀请或审批机制。
 
 4. 分段与多条消息
    每个连接分别缓存未结束的一行；收到 \n 后提取完整行，再解析命令。

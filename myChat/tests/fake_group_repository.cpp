@@ -24,6 +24,20 @@ GroupResult GroupRepository::createGroup(const std::string& name, std::uint64_t 
     return GroupResult::Success;
 }
 
+GroupResult GroupRepository::addMember(std::uint64_t groupId, std::uint64_t userId)
+{
+    if (groupId == UINT64_MAX) return GroupResult::DatabaseError;
+    Group group;
+    for (const auto& membership : memberships) {
+        if (membership.second.id != groupId) continue;
+        if (membership.first == userId) return GroupResult::AlreadyMember;
+        group = membership.second;
+    }
+    if (group.id == 0) return GroupResult::NotFound;
+    memberships.emplace_back(userId, group);
+    return GroupResult::Success;
+}
+
 GroupResult GroupRepository::listGroups(std::uint64_t userId, std::vector<Group>& groups)
 {
     if (listModes[userId] == 1) return GroupResult::DatabaseError;
