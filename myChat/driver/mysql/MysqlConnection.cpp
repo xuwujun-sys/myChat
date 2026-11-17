@@ -8,6 +8,11 @@
 MysqlConnection::MysqlConnection() = default;
 MysqlConnection::~MysqlConnection() = default;
 
+void MysqlConnection::disconnect()
+{
+    connection_.reset();
+}
+
 bool MysqlConnection::connect(const std::string& address, const std::string& username,
                               const std::string& password, const std::string& database)
 {

@@ -12,6 +12,7 @@ public:
 
     bool connect(const std::string& address, const std::string& username,
                  const std::string& password, const std::string& database);
+    void disconnect();
     sql::Connection* get() const { return connection_.get(); }
     const std::string& lastError() const { return last_error_; }
 

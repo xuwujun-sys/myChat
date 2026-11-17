@@ -10,14 +10,15 @@ struct Group {
     std::string name;
 };
 
-enum class GroupResult { Success, AlreadyMember, NotFound, DatabaseError };
+enum class GroupResult { Success, AlreadyMember, NotFound, DatabaseError, CommitUnknown, SuccessConnectionLost };
 
 // 管理群组和群成员，不负责在线状态。
 class GroupRepository {
 public:
     explicit GroupRepository(MysqlConnection& connection) : connection_(connection) {}
 
-    // 创建群并添加创建者；成功时返回群 ID。
+    // SuccessConnectionLost 表示创建成功但连接已断开；不可重复创建。
+    // CommitUnknown 时 ID 仅供查询确认，不可直接重试。
     GroupResult createGroup(const std::string& name, std::uint64_t creatorId, std::uint64_t& groupId);
     GroupResult addMember(std::uint64_t groupId, std::uint64_t userId);
     // 查询成功时更新列表；未加入任何群时返回空列表。

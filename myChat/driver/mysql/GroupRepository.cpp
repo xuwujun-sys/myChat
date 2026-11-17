@@ -17,6 +17,8 @@ GroupResult GroupRepository::createGroup(const std::string& name, std::uint64_t 
         return GroupResult::DatabaseError;
     }
     bool transactionStarted = false;
+    bool commitStarted = false;
+    bool committed = false;
     try {
         if (!connection->getAutoCommit()) {
             last_error_ = "Connection already has an active transaction";
@@ -42,12 +44,18 @@ GroupResult GroupRepository::createGroup(const std::string& name, std::uint64_t 
         member->setUInt64(1, id);
         member->setUInt64(2, creatorId);
         member->executeUpdate();
-        connection->commit();
-        connection->setAutoCommit(true);
         groupId = id;
+        commitStarted = true;
+        connection->commit();
+        committed = true;
+        connection->setAutoCommit(true);
         return GroupResult::Success;
     } catch (const sql::SQLException& error) {
         last_error_ = error.what();
+        if (commitStarted) {
+            connection_.disconnect();
+            return committed ? GroupResult::SuccessConnectionLost : GroupResult::CommitUnknown;
+        }
         if (transactionStarted) {
             try {
                 connection->rollback();
@@ -55,8 +63,11 @@ GroupResult GroupRepository::createGroup(const std::string& name, std::uint64_t 
             } catch (const sql::SQLException& cleanupError) {
                 last_error_ += "; transaction cleanup failed: ";
                 last_error_ += cleanupError.what();
+                connection_.disconnect();
                 return GroupResult::DatabaseError;
             }
+        } else {
+            connection_.disconnect();
         }
         return error.getErrorCode() == 1452 ? GroupResult::NotFound : GroupResult::DatabaseError;
     }
