@@ -83,6 +83,9 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
         case ChatCommand::CreateGroup:
             if (!handleCreateGroup(channel, client, value)) return false;
             break;
+        case ChatCommand::MyGroups:
+            if (!handleMyGroups(channel, client)) return false;
+            break;
         }
         if (channel.shouldCloseAfterSend()) return true;
     }
@@ -125,6 +128,24 @@ bool ChatHandler::handleCreateGroup(TcpChannel& channel, const ClientState& clie
         return sendError(channel, "DATABASE_ERROR");
     }
     return reply(channel, "OK CREATE_GROUP " + std::to_string(groupId) + " " + name + "\n");
+}
+
+bool ChatHandler::handleMyGroups(TcpChannel& channel, const ClientState& client)
+{
+    if (client.nickname.empty()) return sendError(channel, "LOGIN_REQUIRED");
+    std::vector<Group> groups;
+    if (groups_.listGroups(client.user_id, groups) != GroupResult::Success) return sendError(channel, "DATABASE_ERROR");
+
+    // 避免数据库中已有的非法群名破坏按行分隔的协议。
+    for (const Group& group : groups) {
+        if (group.name.empty()) return sendError(channel, "DATABASE_ERROR");
+        for (unsigned char c : group.name) if (c < 32 || c == 127) return sendError(channel, "DATABASE_ERROR");
+    }
+    if (!reply(channel, "MY_GROUPS_BEGIN\n")) return false;
+    for (const Group& group : groups) {
+        if (!reply(channel, "MY_GROUP " + std::to_string(group.id) + " " + group.name + "\n")) return false;
+    }
+    return reply(channel, "MY_GROUPS_END\n");
 }
 
 bool ChatHandler::handlePrivateMessage(TcpChannel& channel, const ClientState& client, const PrivateMessage& privateMessage)

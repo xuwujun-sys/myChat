@@ -66,6 +66,7 @@ bool ChatProtocol::append(const char* data, std::size_t size, std::vector<std::s
 
 std::unique_ptr<ChatMessage> ChatProtocol::parseCommand(const std::string& line)
 {
+    if (line == "MY_GROUPS") return std::unique_ptr<ChatMessage>(new MyGroupsMessage());
     std::size_t separator = line.find(' ');
     if (separator == std::string::npos) return nullptr;
     std::string name = line.substr(0, separator);
