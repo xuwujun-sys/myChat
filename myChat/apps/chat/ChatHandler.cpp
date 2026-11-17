@@ -1,5 +1,6 @@
 #include "ChatHandler.h"
 #include "../../network/TcpChannel.h"
+#include <iostream>
 
 namespace {
 // 将一条协议响应放入通道的发送缓冲区。
@@ -33,6 +34,7 @@ void ChatHandler::markOffline(ClientState& client)
 {
     client.channel->closeAfterSend();
     client.nickname.clear();
+    client.user_id = 0;
 }
 
 bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size)
@@ -78,6 +80,9 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
         case ChatCommand::Text:
             if (!broadcastMessage(channel, client, value)) return false;
             break;
+        case ChatCommand::CreateGroup:
+            if (!handleCreateGroup(channel, client, value)) return false;
+            break;
         }
         if (channel.shouldCloseAfterSend()) return true;
     }
@@ -102,9 +107,24 @@ bool ChatHandler::handleLogin(TcpChannel& channel, ClientState& client,
 
     if (findClientByNickname(username)) return sendError(channel, "NICKNAME_TAKEN");
     client.nickname = username;
+    client.user_id = user.id;
     if (!reply(channel, "OK LOGIN\n")) return false;
     broadcastUsers();
     return true;
+}
+
+bool ChatHandler::handleCreateGroup(TcpChannel& channel, const ClientState& client, const std::string& name)
+{
+    if (client.nickname.empty()) return sendError(channel, "LOGIN_REQUIRED");
+    std::uint64_t groupId = 0;
+    GroupResult result = groups_.createGroup(name, client.user_id, groupId);
+    if (result == GroupResult::CommitUnknown) return sendError(channel, "CREATE_GROUP_UNCERTAIN " + std::to_string(groupId));
+    if (result == GroupResult::SuccessConnectionLost) {
+        std::cerr << "Group created, database connection lost: " << groups_.lastError() << std::endl;
+    } else if (result != GroupResult::Success) {
+        return sendError(channel, "DATABASE_ERROR");
+    }
+    return reply(channel, "OK CREATE_GROUP " + std::to_string(groupId) + " " + name + "\n");
 }
 
 bool ChatHandler::handlePrivateMessage(TcpChannel& channel, const ClientState& client, const PrivateMessage& privateMessage)

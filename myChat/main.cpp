@@ -1,6 +1,7 @@
 #include "network/Kernel.h"
 #include "apps/chat/ChatHandler.h"
 #include "driver/mysql/MysqlConnection.h"
+#include "driver/mysql/GroupRepository.h"
 #include <cstdlib>
 #include <iostream>
 
@@ -21,7 +22,8 @@ int main()
         return 1;
     }
     UserRepository users(connection);
-    ChatHandler handler(users);
+    GroupRepository groups(connection);
+    ChatHandler handler(users, groups);
     Kernel server(handler, 0); // 聊天连接不启用空闲超时。
     return server.run();
 }

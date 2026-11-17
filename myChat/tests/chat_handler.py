@@ -32,6 +32,8 @@ bob = b"b" + suffix
 try:
     guest.sendall(b"MSG before login\n")
     expect(guest_in, b"ERROR LOGIN_REQUIRED\n")
+    guest.sendall(b"CREATE_GROUP Guest Group\n")
+    expect(guest_in, b"ERROR LOGIN_REQUIRED\n")
     first.sendall(b"REGISTER " + alice + b" pass\n")
     expect(first_in, b"OK REGISTER\n")
     second.sendall(b"REGISTER " + bob + b" pass\n")
@@ -58,6 +60,19 @@ try:
     expect(guest_in, b"ERROR NICKNAME_TAKEN\n")
     first.sendall(b"LOGIN another pass\n")
     expect(first_in, b"ERROR ALREADY_LOGGED_IN\n")
+    first.sendall(b"CREATE_")
+    first.sendall(b"GROUP Project Alpha\n")
+    created = first_in.readline()
+    parts = created.rstrip(b"\n").split(b" ", 3)
+    assert len(parts) == 4 and parts[:2] == [b"OK", b"CREATE_GROUP"] and int(parts[2]) > 0 and parts[3] == b"Project Alpha", created
+    first.sendall(b"CREATE_GROUP  bad\nCREATE_GROUP " + b"x" * 65 + b"\n")
+    expect(first_in, b"ERROR INVALID_COMMAND\n")
+    expect(first_in, b"ERROR INVALID_COMMAND\n")
+    if os.environ.get("CHAT_TEST_FAKE_DB") == "1":
+        first.sendall(b"CREATE_GROUP test_db_error\nCREATE_GROUP test_commit_unknown\nCREATE_GROUP test_committed_lost\n")
+        expect(first_in, b"ERROR DATABASE_ERROR\n")
+        expect(first_in, b"ERROR CREATE_GROUP_UNCERTAIN 100\n")
+        expect(first_in, b"OK CREATE_GROUP 101 test_committed_lost\n")
 
     # 半条消息和粘包；仅已登录的其他用户收到消息。
     first.sendall(b"MSG hel")

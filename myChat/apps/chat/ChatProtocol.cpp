@@ -36,13 +36,22 @@ std::unique_ptr<ChatMessage> parseText(const std::string& argument)
     for (unsigned char c : argument) if (c < 32 || c == 127) return nullptr;
     return std::unique_ptr<ChatMessage>(new TextMessage(argument));
 }
+
+std::unique_ptr<ChatMessage> parseCreateGroup(const std::string& name)
+{
+    if (name.empty() || name.size() > MAX_CHAT_GROUP_NAME_BYTES || name.front() == ' ' || name.back() == ' ') return nullptr;
+    for (unsigned char c : name) if (c < 32 || c == 127) return nullptr;
+    return std::unique_ptr<ChatMessage>(new CreateGroupMessage(name));
+}
 }
 
 bool ChatProtocol::append(const char* data, std::size_t size, std::vector<std::string>& lines)
 {
     const std::size_t loginLimit = 10 + MAX_CHAT_NICKNAME_BYTES + MAX_CHAT_PASSWORD_BYTES; // REGISTER、空格和账号密码。
     const std::size_t messageLimit = 9 + MAX_CHAT_NICKNAME_BYTES + MAX_CHAT_MESSAGE_BYTES; // PRIVATE、空格、接收人和内容。
-    const std::size_t maxLineBytes = loginLimit > messageLimit ? loginLimit : messageLimit;
+    const std::size_t groupLimit = 13 + MAX_CHAT_GROUP_NAME_BYTES; // CREATE_GROUP、空格和群名。
+    const std::size_t otherLimit = loginLimit > groupLimit ? loginLimit : groupLimit;
+    const std::size_t maxLineBytes = otherLimit > messageLimit ? otherLimit : messageLimit;
     for (std::size_t i = 0; i < size; ++i) {
         if (data[i] == '\n') {
             lines.push_back(pending_);
@@ -64,5 +73,6 @@ std::unique_ptr<ChatMessage> ChatProtocol::parseCommand(const std::string& line)
     if (name == "LOGIN" || name == "REGISTER") return parseAccount(name, argument);
     if (name == "PRIVATE") return parsePrivate(argument);
     if (name == "MSG") return parseText(argument);
+    if (name == "CREATE_GROUP") return parseCreateGroup(argument);
     return nullptr;
 }

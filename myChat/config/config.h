@@ -10,3 +10,4 @@
 #define MAX_CHAT_NICKNAME_BYTES 32 // 聊天昵称上限，单位：字节。
 #define MAX_CHAT_PASSWORD_BYTES 128 // 聊天密码上限，单位：字节。
 #define MAX_CHAT_MESSAGE_BYTES 1024 // 单条聊天内容上限，单位：字节。
+#define MAX_CHAT_GROUP_NAME_BYTES 64 // 群名称上限，单位：字节。

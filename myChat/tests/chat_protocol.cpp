@@ -24,6 +24,7 @@ int main()
     assert(dynamic_cast<RegisterMessage*>(ChatProtocol::parseCommand("REGISTER user pass").get()));
     assert(dynamic_cast<TextMessage*>(ChatProtocol::parseCommand("MSG hello").get()));
     assert(dynamic_cast<PrivateMessage*>(ChatProtocol::parseCommand("PRIVATE user hello world").get()));
+    assert(dynamic_cast<CreateGroupMessage*>(ChatProtocol::parseCommand("CREATE_GROUP Project Alpha").get()));
 
     std::unique_ptr<ChatMessage> login = ChatProtocol::parseCommand("LOGIN alice pass");
     const AccountMessage* account = dynamic_cast<const AccountMessage*>(login.get());
@@ -69,6 +70,14 @@ int main()
     assert(!parseCommand("PRIVATE " + std::string(MAX_CHAT_NICKNAME_BYTES + 1, 'n') + " hi", command, value));
     assert(!parseCommand("PRIVATE user " + std::string(MAX_CHAT_MESSAGE_BYTES + 1, 'x'), command, value));
     assert(parseCommand("PRIVATE " + std::string(MAX_CHAT_NICKNAME_BYTES, 'n') + " " + std::string(MAX_CHAT_MESSAGE_BYTES, 'x'), command, value));
+    assert(parseCommand("CREATE_GROUP Project Alpha", command, value) && command == ChatCommand::CreateGroup && value == "Project Alpha");
+    assert(parseCommand("CREATE_GROUP \xE8\x81\x8A\xE5\xA4\xA9", command, value));
+    assert(!parseCommand("CREATE_GROUP ", command, value));
+    assert(!parseCommand("CREATE_GROUP  name", command, value));
+    assert(!parseCommand("CREATE_GROUP name ", command, value));
+    assert(!parseCommand("CREATE_GROUP name\tbad", command, value));
+    assert(!parseCommand("CREATE_GROUP " + std::string(MAX_CHAT_GROUP_NAME_BYTES + 1, 'x'), command, value));
+    assert(parseCommand("CREATE_GROUP " + std::string(MAX_CHAT_GROUP_NAME_BYTES, 'x'), command, value));
 
     ChatProtocol large;
     lines.clear();

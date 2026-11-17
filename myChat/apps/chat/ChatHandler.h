@@ -2,22 +2,25 @@
 #include "../../network/Handler.h"
 #include "ChatProtocol.h"
 #include "../../driver/mysql/UserRepository.h"
+#include "../../driver/mysql/GroupRepository.h"
 #include <string>
 #include <unordered_map>
 
 // 单线程群聊处理器；通道由 Kernel 持有，断开时删除对应状态。
 class ChatHandler : public Handler {
 public:
-    explicit ChatHandler(UserRepository& users) : users_(users) {}
+    ChatHandler(UserRepository& users, GroupRepository& groups) : users_(users), groups_(groups) {}
     void onConnected(TcpChannel& channel) override;
     bool onData(TcpChannel& channel, const char* data, std::size_t size) override;
     void onDisconnected(TcpChannel& channel) override;
 
 private:
     UserRepository& users_;
+    GroupRepository& groups_;
     struct ClientState {
         TcpChannel* channel = nullptr;
         std::string nickname;
+        std::uint64_t user_id = 0;
         ChatProtocol protocol;
     };
     std::unordered_map<int, ClientState> clients_;
@@ -30,5 +33,6 @@ private:
     bool handleRegister(TcpChannel& channel, const std::string& username, const std::string& password);
     bool broadcastMessage(TcpChannel& channel, const ClientState& client, const std::string& value);
     bool handlePrivateMessage(TcpChannel& channel, const ClientState& client, const PrivateMessage& message);
+    bool handleCreateGroup(TcpChannel& channel, const ClientState& client, const std::string& name);
     void broadcastUsers();
 };

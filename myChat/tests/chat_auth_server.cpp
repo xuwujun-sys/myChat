@@ -7,7 +7,8 @@ int main()
 {
     MysqlConnection connection;
     UserRepository users(connection);
-    ChatHandler handler(users);
+    GroupRepository groups(connection);
+    ChatHandler handler(users, groups);
     Kernel server(handler, 0);
     return server.run();
 }

@@ -2,7 +2,7 @@
 #include <cstddef>
 #include <string>
 
-enum class ChatCommand { Login, Register, Text, Private };
+enum class ChatCommand { Login, Register, Text, Private, CreateGroup };
 
 // 客户端消息的统一接口。
 class ChatMessage {
@@ -48,6 +48,16 @@ public:
 
 private:
     std::string value_;
+};
+
+class CreateGroupMessage : public ChatMessage {
+public:
+    explicit CreateGroupMessage(const std::string& name) : name_(name) {}
+    ChatCommand command() const override { return ChatCommand::CreateGroup; }
+    const std::string& value() const override { return name_; }
+
+private:
+    std::string name_;
 };
 
 class PrivateMessage : public ChatMessage {
