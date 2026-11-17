@@ -36,5 +36,6 @@ private:
     bool handleCreateGroup(TcpChannel& channel, const ClientState& client, const std::string& name);
     bool handleMyGroups(TcpChannel& channel, const ClientState& client);
     bool handleJoinGroup(TcpChannel& channel, const ClientState& client, std::uint64_t groupId);
+    bool handleGroupText(TcpChannel& channel, const ClientState& client, const GroupTextMessage& message);
     void broadcastUsers();
 };

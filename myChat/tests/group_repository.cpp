@@ -17,9 +17,11 @@ int main()
     GroupRepository unavailable(disconnected);
     std::uint64_t id = 99;
     std::vector<Group> groups;
+    std::vector<std::uint64_t> memberIds;
     assert(unavailable.createGroup("group", 1, id) == GroupResult::DatabaseError && id == 99);
     assert(unavailable.addMember(1, 1) == GroupResult::DatabaseError);
     assert(unavailable.listGroups(1, groups) == GroupResult::DatabaseError);
+    assert(unavailable.listMemberIds(1, memberIds) == GroupResult::DatabaseError);
 
     const char* host = std::getenv("GROUP_TEST_HOST");
     const char* database = std::getenv("GROUP_TEST_DATABASE");
@@ -35,6 +37,9 @@ int main()
     assert(groups[0].id == id && groups[0].name == "Group 'one'");
     assert(repository.addMember(id, 1) == GroupResult::AlreadyMember);
     assert(repository.addMember(id, 2) == GroupResult::Success);
+    assert(repository.listMemberIds(id, memberIds) == GroupResult::Success && memberIds.size() == 2);
+    assert((memberIds[0] == 1 && memberIds[1] == 2) || (memberIds[0] == 2 && memberIds[1] == 1));
+    assert(repository.listMemberIds(999999, memberIds) == GroupResult::Success && memberIds.empty());
     assert(repository.listGroups(2, groups) == GroupResult::Success && groups.size() == 1 && groups[0].id == id);
     assert(repository.addMember(id, 999999) == GroupResult::NotFound);
     assert(repository.addMember(999999, 1) == GroupResult::NotFound);

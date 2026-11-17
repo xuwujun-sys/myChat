@@ -45,18 +45,36 @@ std::unique_ptr<ChatMessage> parseCreateGroup(const std::string& name)
     return std::unique_ptr<ChatMessage>(new CreateGroupMessage(name));
 }
 
-std::unique_ptr<ChatMessage> parseJoinGroup(const std::string& value)
+bool parseGroupId(const std::string& value, std::uint64_t& id)
 {
-    if (value.empty() || value.size() > 20) return nullptr;
-    std::uint64_t id = 0;
+    if (value.empty() || value.size() > 20) return false;
+    id = 0;
     for (char c : value) {
-        if (c < '0' || c > '9') return nullptr;
+        if (c < '0' || c > '9') return false;
         unsigned int digit = c - '0';
-        if (id > (std::numeric_limits<std::uint64_t>::max() - digit) / 10) return nullptr;
+        if (id > (std::numeric_limits<std::uint64_t>::max() - digit) / 10) return false;
         id = id * 10 + digit;
     }
-    if (id == 0) return nullptr;
+    return id != 0;
+}
+
+std::unique_ptr<ChatMessage> parseJoinGroup(const std::string& value)
+{
+    std::uint64_t id;
+    if (!parseGroupId(value, id)) return nullptr;
     return std::unique_ptr<ChatMessage>(new JoinGroupMessage(value, id));
+}
+
+std::unique_ptr<ChatMessage> parseGroupText(const std::string& value)
+{
+    std::size_t space = value.find(' ');
+    if (space == std::string::npos) return nullptr;
+    std::uint64_t id;
+    if (!parseGroupId(value.substr(0, space), id)) return nullptr;
+    std::string content = value.substr(space + 1);
+    if (content.empty() || content.size() > MAX_CHAT_MESSAGE_BYTES) return nullptr;
+    for (unsigned char c : content) if (c < 32 || c == 127) return nullptr;
+    return std::unique_ptr<ChatMessage>(new GroupTextMessage(value, id, space));
 }
 }
 
@@ -67,7 +85,8 @@ bool ChatProtocol::append(const char* data, std::size_t size, std::vector<std::s
     const std::size_t groupLimit = 13 + MAX_CHAT_GROUP_NAME_BYTES; // CREATE_GROUP、空格和群名。
     const std::size_t otherLimit = loginLimit > groupLimit ? loginLimit : groupLimit;
     const std::size_t existingLimit = otherLimit > messageLimit ? otherLimit : messageLimit;
-    const std::size_t maxLineBytes = existingLimit > 31 ? existingLimit : 31; // JOIN_GROUP 和最多 20 位群 ID。
+    const std::size_t groupTextLimit = 31 + MAX_CHAT_MESSAGE_BYTES; // GROUP_MSG、空格、群 ID 和内容。
+    const std::size_t maxLineBytes = existingLimit > groupTextLimit ? existingLimit : groupTextLimit;
     for (std::size_t i = 0; i < size; ++i) {
         if (data[i] == '\n') {
             lines.push_back(pending_);
@@ -92,5 +111,6 @@ std::unique_ptr<ChatMessage> ChatProtocol::parseCommand(const std::string& line)
     if (name == "MSG") return parseText(argument);
     if (name == "CREATE_GROUP") return parseCreateGroup(argument);
     if (name == "JOIN_GROUP") return parseJoinGroup(argument);
+    if (name == "GROUP_MSG") return parseGroupText(argument);
     return nullptr;
 }

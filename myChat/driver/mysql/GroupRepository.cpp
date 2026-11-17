@@ -122,3 +122,25 @@ GroupResult GroupRepository::listGroups(std::uint64_t userId, std::vector<Group>
         return GroupResult::DatabaseError;
     }
 }
+
+GroupResult GroupRepository::listMemberIds(std::uint64_t groupId, std::vector<std::uint64_t>& userIds)
+{
+    last_error_.clear();
+    if (!connection_.get()) {
+        last_error_ = "Database is not connected";
+        return GroupResult::DatabaseError;
+    }
+    try {
+        std::unique_ptr<sql::PreparedStatement> statement(connection_.get()->prepareStatement(
+            "SELECT user_id FROM group_members WHERE group_id = ?"));
+        statement->setUInt64(1, groupId);
+        std::unique_ptr<sql::ResultSet> result(statement->executeQuery());
+        std::vector<std::uint64_t> found;
+        while (result->next()) found.push_back(result->getUInt64(1));
+        userIds = std::move(found);
+        return GroupResult::Success;
+    } catch (const sql::SQLException& error) {
+        last_error_ = error.what();
+        return GroupResult::DatabaseError;
+    }
+}

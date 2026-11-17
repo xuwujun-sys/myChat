@@ -23,6 +23,7 @@ public:
     GroupResult addMember(std::uint64_t groupId, std::uint64_t userId);
     // 查询成功时更新列表；未加入任何群时返回空列表。
     GroupResult listGroups(std::uint64_t userId, std::vector<Group>& groups);
+    GroupResult listMemberIds(std::uint64_t groupId, std::vector<std::uint64_t>& userIds);
     const std::string& lastError() const { return last_error_; }
 
 private:

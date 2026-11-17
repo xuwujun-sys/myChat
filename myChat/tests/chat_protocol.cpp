@@ -94,6 +94,16 @@ int main()
     assert(!parseCommand("JOIN_GROUP 1 2", command, value));
     assert(!parseCommand("JOIN_GROUP 18446744073709551616", command, value));
     assert(!parseCommand("JOIN_GROUP 000000000000000000001", command, value));
+    std::unique_ptr<ChatMessage> groupText = ChatProtocol::parseCommand("GROUP_MSG 001 hello group");
+    const GroupTextMessage* groupData = dynamic_cast<const GroupTextMessage*>(groupText.get());
+    assert(groupData && groupData->groupId() == 1 && groupData->content() == "hello group");
+    assert(!parseCommand("GROUP_MSG 0 hello", command, value));
+    assert(!parseCommand("GROUP_MSG 18446744073709551616 hello", command, value));
+    assert(!parseCommand("GROUP_MSG 1", command, value));
+    assert(!parseCommand("GROUP_MSG 1 ", command, value));
+    assert(!parseCommand("GROUP_MSG 1 hi\r", command, value));
+    assert(!parseCommand("GROUP_MSG 1 " + std::string(MAX_CHAT_MESSAGE_BYTES + 1, 'x'), command, value));
+    assert(parseCommand("GROUP_MSG 18446744073709551615 " + std::string(MAX_CHAT_MESSAGE_BYTES, 'x'), command, value));
 
     ChatProtocol large;
     lines.clear();

@@ -58,3 +58,13 @@ GroupResult GroupRepository::listGroups(std::uint64_t userId, std::vector<Group>
     }
     return GroupResult::Success;
 }
+
+GroupResult GroupRepository::listMemberIds(std::uint64_t groupId, std::vector<std::uint64_t>& userIds)
+{
+    if (groupId == UINT64_MAX) return GroupResult::DatabaseError;
+    userIds.clear();
+    for (const auto& membership : memberships) {
+        if (membership.second.id == groupId) userIds.push_back(membership.first);
+    }
+    return GroupResult::Success;
+}

@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-enum class ChatCommand { Login, Register, Text, Private, CreateGroup, MyGroups, JoinGroup };
+enum class ChatCommand { Login, Register, Text, Private, CreateGroup, MyGroups, JoinGroup, GroupText };
 
 // 客户端消息的统一接口。
 class ChatMessage {
@@ -80,6 +80,21 @@ public:
 private:
     std::string value_;
     std::uint64_t groupId_;
+};
+
+class GroupTextMessage : public ChatMessage {
+public:
+    GroupTextMessage(const std::string& value, std::uint64_t groupId, std::size_t separator)
+        : value_(value), groupId_(groupId), content_(value.substr(separator + 1)) {}
+    ChatCommand command() const override { return ChatCommand::GroupText; }
+    const std::string& value() const override { return value_; }
+    std::uint64_t groupId() const { return groupId_; }
+    const std::string& content() const { return content_; }
+
+private:
+    std::string value_;
+    std::uint64_t groupId_;
+    std::string content_;
 };
 
 class PrivateMessage : public ChatMessage {

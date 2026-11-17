@@ -1,5 +1,6 @@
 #include "ChatHandler.h"
 #include "../../network/TcpChannel.h"
+#include <algorithm>
 #include <iostream>
 
 namespace {
@@ -91,6 +92,11 @@ bool ChatHandler::onData(TcpChannel& channel, const char* data, std::size_t size
             if (!message || !handleJoinGroup(channel, client, message->groupId())) return false;
             break;
         }
+        case ChatCommand::GroupText: {
+            const GroupTextMessage* message = dynamic_cast<const GroupTextMessage*>(chatMessage.get());
+            if (!message || !handleGroupText(channel, client, *message)) return false;
+            break;
+        }
         }
         if (channel.shouldCloseAfterSend()) return true;
     }
@@ -162,6 +168,29 @@ bool ChatHandler::handleJoinGroup(TcpChannel& channel, const ClientState& client
     if (result == GroupResult::NotFound) return sendError(channel, "GROUP_OR_USER_NOT_FOUND " + id);
     if (result != GroupResult::Success) return sendError(channel, "DATABASE_ERROR");
     return reply(channel, "OK JOIN_GROUP " + id + "\n");
+}
+
+bool ChatHandler::handleGroupText(TcpChannel& channel, const ClientState& client, const GroupTextMessage& message)
+{
+    if (client.nickname.empty()) return sendError(channel, "LOGIN_REQUIRED");
+    std::vector<std::uint64_t> members;
+    if (groups_.listMemberIds(message.groupId(), members) != GroupResult::Success) return sendError(channel, "DATABASE_ERROR");
+    if (std::find(members.begin(), members.end(), client.user_id) == members.end()) return sendError(channel, "NOT_GROUP_MEMBER");
+
+    std::string text = "GROUP_CHAT " + std::to_string(message.groupId()) + " " + client.nickname + " " + message.content() + "\n";
+    bool usersChanged = false;
+    for (auto& item : clients_) {
+        ClientState& recipient = item.second;
+        if (item.first != channel.getFd() && !recipient.nickname.empty() &&
+            !recipient.channel->shouldCloseAfterSend() &&
+            std::find(members.begin(), members.end(), recipient.user_id) != members.end() &&
+            !reply(*recipient.channel, text)) {
+            markOffline(recipient);
+            usersChanged = true;
+        }
+    }
+    if (usersChanged) broadcastUsers();
+    return true;
 }
 
 bool ChatHandler::handlePrivateMessage(TcpChannel& channel, const ClientState& client, const PrivateMessage& privateMessage)
